@@ -29,7 +29,9 @@ SELECT ua.user_id,
        ua.aff_code,
        COALESCE(ua.aff_rebate_rate_percent, 0)::double precision,
        (ua.aff_rebate_rate_percent IS NOT NULL) AS has_custom_rate,
-       ua.aff_count,
+       (SELECT COUNT(*)::integer
+        FROM user_affiliates invitee_rel
+        WHERE invitee_rel.inviter_id = ua.user_id) AS aff_count,
        COALESCE(rebated.rebated_invitee_count, 0),
        (ua.aff_quota + COALESCE(matured.matured_frozen_quota, 0))::double precision,
        ua.aff_history_quota::double precision

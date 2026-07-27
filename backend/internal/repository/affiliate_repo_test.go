@@ -11,6 +11,7 @@ import (
 func TestAffiliateUserOverviewSQLIncludesMaturedFrozenQuota(t *testing.T) {
 	query := strings.Join(strings.Fields(affiliateUserOverviewSQL), " ")
 
+	require.Contains(t, query, "FROM user_affiliates invitee_rel WHERE invitee_rel.inviter_id = ua.user_id")
 	require.Contains(t, query, "ua.aff_quota + COALESCE(matured.matured_frozen_quota, 0)")
 	require.Contains(t, query, "frozen_until <= NOW()")
 }
