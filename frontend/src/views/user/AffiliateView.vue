@@ -8,6 +8,21 @@
       </div>
 
       <template v-else-if="detail">
+        <div v-if="sales" class="grid gap-4 sm:grid-cols-2">
+          <div class="card p-5">
+            <p class="text-sm text-gray-500 dark:text-dark-400">{{ t('affiliate.sales.week') }}</p>
+            <p class="mt-2 text-2xl font-semibold text-emerald-600 dark:text-emerald-400">
+              {{ formatCurrency(sales.week_sales) }}
+            </p>
+          </div>
+          <div class="card p-5">
+            <p class="text-sm text-gray-500 dark:text-dark-400">{{ t('affiliate.sales.month') }}</p>
+            <p class="mt-2 text-2xl font-semibold text-primary-600 dark:text-primary-400">
+              {{ formatCurrency(sales.month_sales) }}
+            </p>
+          </div>
+        </div>
+
         <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <div class="card p-5">
             <p class="flex items-center gap-1.5 text-sm text-gray-500 dark:text-dark-400">
@@ -145,7 +160,7 @@ import { useI18n } from 'vue-i18n'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import Icon from '@/components/icons/Icon.vue'
 import userAPI from '@/api/user'
-import type { UserAffiliateDetail } from '@/types'
+import type { AffiliateSalesSummary, UserAffiliateDetail } from '@/types'
 import { useAppStore } from '@/stores/app'
 import { useAuthStore } from '@/stores/auth'
 import { useClipboard } from '@/composables/useClipboard'
@@ -160,6 +175,7 @@ const { copyToClipboard } = useClipboard()
 const loading = ref(true)
 const transferring = ref(false)
 const detail = ref<UserAffiliateDetail | null>(null)
+const sales = ref<AffiliateSalesSummary | null>(null)
 
 const inviteLink = computed(() => {
   if (!detail.value) return ''
@@ -184,7 +200,12 @@ async function loadAffiliateDetail(silent = false): Promise<void> {
     loading.value = true
   }
   try {
-    detail.value = await userAPI.getAffiliateDetail()
+    const [affiliateDetail, agentSales] = await Promise.all([
+      userAPI.getAffiliateDetail(),
+      authStore.user?.role === 'agent' ? userAPI.getAffiliateSales() : Promise.resolve(null),
+    ])
+    detail.value = affiliateDetail
+    sales.value = agentSales
   } catch (error) {
     appStore.showError(extractApiErrorMessage(error, t('affiliate.loadFailed')))
   } finally {

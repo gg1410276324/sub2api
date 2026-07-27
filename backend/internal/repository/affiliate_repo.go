@@ -29,7 +29,9 @@ SELECT ua.user_id,
        ua.aff_code,
        COALESCE(ua.aff_rebate_rate_percent, 0)::double precision,
        (ua.aff_rebate_rate_percent IS NOT NULL) AS has_custom_rate,
-       ua.aff_count,
+       (SELECT COUNT(*)::integer
+        FROM user_affiliates invitee_rel
+        WHERE invitee_rel.inviter_id = ua.user_id) AS aff_count,
        COALESCE(rebated.rebated_invitee_count, 0),
        (ua.aff_quota + COALESCE(matured.matured_frozen_quota, 0))::double precision,
        ua.aff_history_quota::double precision
@@ -381,6 +383,92 @@ LIMIT $2`, inviterID, limit)
 		return nil, err
 	}
 	return invitees, nil
+}
+
+func (r *affiliateRepository) GetAffiliateSales(ctx context.Context, agentID int64, weekStart, monthStart time.Time) (*service.AffiliateSalesSummary, error) {
+	client := clientFromContext(ctx, r.client)
+	rows, err := client.QueryContext(ctx, `
+SELECT COUNT(DISTINCT ua.user_id)::integer,
+       COALESCE(SUM(CASE WHEN COALESCE(po.completed_at, po.paid_at) >= $2::timestamptz THEN po.amount ELSE 0 END), 0)::double precision,
+       COALESCE(SUM(CASE WHEN COALESCE(po.completed_at, po.paid_at) >= $3::timestamptz THEN po.amount ELSE 0 END), 0)::double precision
+FROM user_affiliates ua
+LEFT JOIN payment_orders po
+       ON po.user_id = ua.user_id
+      AND po.order_type = 'balance'
+      AND po.status = 'COMPLETED'
+      AND COALESCE(po.completed_at, po.paid_at) >= LEAST($2::timestamptz, $3::timestamptz)
+WHERE ua.inviter_id = $1`, agentID, weekStart, monthStart)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+
+	item := &service.AffiliateSalesSummary{AgentID: agentID}
+	if rows.Next() {
+		if err := rows.Scan(&item.InviteeCount, &item.WeekSales, &item.MonthSales); err != nil {
+			return nil, err
+		}
+	}
+	return item, rows.Err()
+}
+
+func (r *affiliateRepository) ListAffiliateAgentSales(ctx context.Context, filter service.AffiliateAdminFilter, weekStart, monthStart time.Time) ([]service.AffiliateAgentSales, int64, error) {
+	client := clientFromContext(ctx, r.client)
+	where := "WHERE agent.role = $1 AND agent.deleted_at IS NULL"
+	args := []any{service.RoleAgent}
+	if search := strings.TrimSpace(filter.Search); search != "" {
+		args = append(args, "%"+search+"%")
+		where += fmt.Sprintf(" AND (agent.email ILIKE $%d OR agent.username ILIKE $%d)", len(args), len(args))
+	}
+
+	var total int64
+	countRows, err := client.QueryContext(ctx, "SELECT COUNT(*) FROM users agent "+where, args...)
+	if err != nil {
+		return nil, 0, err
+	}
+	if countRows.Next() {
+		err = countRows.Scan(&total)
+	}
+	_ = countRows.Close()
+	if err != nil {
+		return nil, 0, err
+	}
+
+	args = append(args, weekStart, monthStart, filter.PageSize, (filter.Page-1)*filter.PageSize)
+	weekArg, monthArg, limitArg, offsetArg := len(args)-3, len(args)-2, len(args)-1, len(args)
+	rows, err := client.QueryContext(ctx, fmt.Sprintf(`
+SELECT agent.id,
+       COALESCE(agent.email, ''),
+       COALESCE(agent.username, ''),
+       COUNT(DISTINCT ua.user_id)::integer,
+       COALESCE(SUM(CASE WHEN COALESCE(po.completed_at, po.paid_at) >= $%d::timestamptz THEN po.amount ELSE 0 END), 0)::double precision AS week_sales,
+       COALESCE(SUM(CASE WHEN COALESCE(po.completed_at, po.paid_at) >= $%d::timestamptz THEN po.amount ELSE 0 END), 0)::double precision AS month_sales
+FROM users agent
+LEFT JOIN user_affiliates ua ON ua.inviter_id = agent.id
+LEFT JOIN payment_orders po
+       ON po.user_id = ua.user_id
+      AND po.order_type = 'balance'
+      AND po.status = 'COMPLETED'
+      AND COALESCE(po.completed_at, po.paid_at) >= LEAST($%d::timestamptz, $%d::timestamptz)
+%s
+GROUP BY agent.id, agent.email, agent.username
+ORDER BY month_sales DESC, agent.id DESC
+LIMIT $%d OFFSET $%d`,
+		weekArg, monthArg, weekArg, monthArg, where, limitArg, offsetArg), args...)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer func() { _ = rows.Close() }()
+
+	items := make([]service.AffiliateAgentSales, 0)
+	for rows.Next() {
+		var item service.AffiliateAgentSales
+		if err := rows.Scan(&item.AgentID, &item.Email, &item.Username, &item.InviteeCount, &item.WeekSales, &item.MonthSales); err != nil {
+			return nil, 0, err
+		}
+		items = append(items, item)
+	}
+	return items, total, rows.Err()
 }
 
 func (r *affiliateRepository) ListAffiliateInviteRecords(ctx context.Context, filter service.AffiliateRecordFilter) ([]service.AffiliateInviteRecord, int64, error) {
