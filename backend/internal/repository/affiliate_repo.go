@@ -387,14 +387,14 @@ func (r *affiliateRepository) GetAffiliateSales(ctx context.Context, agentID int
 	client := clientFromContext(ctx, r.client)
 	rows, err := client.QueryContext(ctx, `
 SELECT COUNT(DISTINCT ua.user_id)::integer,
-       COALESCE(SUM(CASE WHEN COALESCE(po.completed_at, po.paid_at) >= $2 THEN po.amount ELSE 0 END), 0)::double precision,
-       COALESCE(SUM(CASE WHEN COALESCE(po.completed_at, po.paid_at) >= $3 THEN po.amount ELSE 0 END), 0)::double precision
+       COALESCE(SUM(CASE WHEN COALESCE(po.completed_at, po.paid_at) >= $2::timestamptz THEN po.amount ELSE 0 END), 0)::double precision,
+       COALESCE(SUM(CASE WHEN COALESCE(po.completed_at, po.paid_at) >= $3::timestamptz THEN po.amount ELSE 0 END), 0)::double precision
 FROM user_affiliates ua
 LEFT JOIN payment_orders po
        ON po.user_id = ua.user_id
       AND po.order_type = 'balance'
       AND po.status = 'COMPLETED'
-      AND COALESCE(po.completed_at, po.paid_at) >= LEAST($2, $3)
+      AND COALESCE(po.completed_at, po.paid_at) >= LEAST($2::timestamptz, $3::timestamptz)
 WHERE ua.inviter_id = $1`, agentID, weekStart, monthStart)
 	if err != nil {
 		return nil, err
@@ -439,15 +439,15 @@ SELECT agent.id,
        COALESCE(agent.email, ''),
        COALESCE(agent.username, ''),
        COUNT(DISTINCT ua.user_id)::integer,
-       COALESCE(SUM(CASE WHEN COALESCE(po.completed_at, po.paid_at) >= $%d THEN po.amount ELSE 0 END), 0)::double precision AS week_sales,
-       COALESCE(SUM(CASE WHEN COALESCE(po.completed_at, po.paid_at) >= $%d THEN po.amount ELSE 0 END), 0)::double precision AS month_sales
+       COALESCE(SUM(CASE WHEN COALESCE(po.completed_at, po.paid_at) >= $%d::timestamptz THEN po.amount ELSE 0 END), 0)::double precision AS week_sales,
+       COALESCE(SUM(CASE WHEN COALESCE(po.completed_at, po.paid_at) >= $%d::timestamptz THEN po.amount ELSE 0 END), 0)::double precision AS month_sales
 FROM users agent
 LEFT JOIN user_affiliates ua ON ua.inviter_id = agent.id
 LEFT JOIN payment_orders po
        ON po.user_id = ua.user_id
       AND po.order_type = 'balance'
       AND po.status = 'COMPLETED'
-      AND COALESCE(po.completed_at, po.paid_at) >= LEAST($%d, $%d)
+      AND COALESCE(po.completed_at, po.paid_at) >= LEAST($%d::timestamptz, $%d::timestamptz)
 %s
 GROUP BY agent.id, agent.email, agent.username
 ORDER BY month_sales DESC, agent.id DESC

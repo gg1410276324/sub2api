@@ -22,7 +22,7 @@ func TestAffiliateSalesCountsCompletedBalanceOrders(t *testing.T) {
 	weekStart := time.Date(2026, time.July, 20, 0, 0, 0, 0, time.UTC)
 	monthStart := time.Date(2026, time.July, 1, 0, 0, 0, 0, time.UTC)
 
-	mock.ExpectQuery(`(?s)FROM user_affiliates ua.*po\.order_type = 'balance'.*po\.status = 'COMPLETED'`).
+	mock.ExpectQuery(`(?s)\$2::timestamptz.*\$3::timestamptz.*FROM user_affiliates ua.*po\.order_type = 'balance'.*po\.status = 'COMPLETED'.*LEAST\(\$2::timestamptz, \$3::timestamptz\)`).
 		WithArgs(int64(9), weekStart, monthStart).
 		WillReturnRows(sqlmock.NewRows([]string{"invitee_count", "week_sales", "month_sales"}).AddRow(3, 12.5, 40.25))
 
