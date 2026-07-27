@@ -17,6 +17,15 @@ export interface AffiliateAdminEntry {
   aff_count: number
 }
 
+export interface AffiliateAgentSales {
+  agent_id: number
+  email: string
+  username: string
+  invitee_count: number
+  week_sales: number
+  month_sales: number
+}
+
 export interface ListAffiliateUsersParams {
   page?: number
   page_size?: number
@@ -125,6 +134,23 @@ export async function listUsers(
   return data
 }
 
+export async function listAgentSales(
+  params: ListAffiliateUsersParams = {},
+): Promise<PaginatedResponse<AffiliateAgentSales>> {
+  const { data } = await apiClient.get<PaginatedResponse<AffiliateAgentSales>>(
+    '/admin/affiliates/agents',
+    {
+      params: {
+        page: params.page ?? 1,
+        page_size: params.page_size ?? 20,
+        search: params.search ?? '',
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      },
+    },
+  )
+  return data
+}
+
 export async function lookupUsers(q: string): Promise<SimpleUser[]> {
   const { data } = await apiClient.get<SimpleUser[]>(
     '/admin/affiliates/users/lookup',
@@ -216,6 +242,7 @@ export async function getUserOverview(
 }
 
 export const affiliatesAPI = {
+  listAgentSales,
   listUsers,
   lookupUsers,
   updateUserSettings,

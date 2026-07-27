@@ -19,6 +19,7 @@ const (
 // Role constants
 const (
 	RoleAdmin = domain.RoleAdmin
+	RoleAgent = domain.RoleAgent
 	RoleUser  = domain.RoleUser
 )
 

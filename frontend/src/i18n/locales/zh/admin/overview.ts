@@ -384,11 +384,20 @@ export default {
     },
 
     affiliates: {
+      agentsDescription: '查看全部代理邀请用户产生的本周和本月充值销售额',
       invitesDescription: '查看全站邀请关系和被邀请用户累计返利',
       rebatesDescription: '查看每一笔产生返利的充值订单',
       transfersDescription: '查看返利额度转入账户余额的提取流水',
       errors: {
         loadFailed: '加载邀请返利记录失败'
+      },
+      agents: {
+        searchPlaceholder: '搜索代理邮箱或用户名',
+        agent: '代理',
+        inviteeCount: '邀请人数',
+        weekSales: '本周销售额',
+        monthSales: '本月销售额',
+        empty: '暂无代理用户'
       },
       records: {
         search: '搜索',
@@ -554,6 +563,7 @@ export default {
       deleteConfirm: "确定要删除用户 '{email}' 吗？此操作无法撤销。",
       roles: {
         admin: '管理员',
+        agent: '代理',
         user: '用户'
       },
       form: {

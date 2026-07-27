@@ -447,6 +447,14 @@ func (r *oauthEmailAffiliateRepoStub) GetAffiliateUserOverview(context.Context, 
 	panic("unexpected GetAffiliateUserOverview call")
 }
 
+func (r *oauthEmailAffiliateRepoStub) GetAffiliateSales(context.Context, int64, time.Time, time.Time) (*service.AffiliateSalesSummary, error) {
+	panic("unexpected GetAffiliateSales call")
+}
+
+func (r *oauthEmailAffiliateRepoStub) ListAffiliateAgentSales(context.Context, service.AffiliateAdminFilter, time.Time, time.Time) ([]service.AffiliateAgentSales, int64, error) {
+	panic("unexpected ListAffiliateAgentSales call")
+}
+
 func findSetCookieValue(cookies []*http.Cookie, name string) string {
 	for _, cookie := range cookies {
 		if cookie != nil && strings.EqualFold(cookie.Name, name) && cookie.MaxAge >= 0 {

@@ -46,6 +46,22 @@ func (h *AffiliateHandler) ListUsers(c *gin.Context) {
 	response.Paginated(c, entries, total, page, pageSize)
 }
 
+// ListAgentSales returns weekly/monthly sales for all agent users.
+// GET /api/v1/admin/affiliates/agents
+func (h *AffiliateHandler) ListAgentSales(c *gin.Context) {
+	page, pageSize := response.ParsePagination(c)
+	entries, total, err := h.affiliateService.AdminListAgentSales(c.Request.Context(), service.AffiliateAdminFilter{
+		Search:   c.Query("search"),
+		Page:     page,
+		PageSize: pageSize,
+	}, c.Query("timezone"))
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Paginated(c, entries, total, page, pageSize)
+}
+
 // UpdateUserSettings updates a user's affiliate settings.
 // PUT /api/v1/admin/affiliates/users/:user_id
 //

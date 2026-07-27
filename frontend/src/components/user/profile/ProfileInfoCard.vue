@@ -25,7 +25,7 @@
                   {{ displayName }}
                 </h2>
                 <span :class="['badge', user?.role === 'admin' ? 'badge-primary' : 'badge-gray']">
-                  {{ user?.role === 'admin' ? t('profile.administrator') : t('profile.user') }}
+                  {{ t(user?.role === 'admin' ? 'profile.administrator' : user?.role === 'agent' ? 'profile.agent' : 'profile.user') }}
                 </span>
                 <span
                   :class="['badge', user?.status === 'active' ? 'badge-success' : 'badge-danger']"
