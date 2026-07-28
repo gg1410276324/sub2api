@@ -8,6 +8,7 @@ export const providerBrands: Array<{ value: ProviderBrand; label: string }> = [
   { value: 'mimo', label: 'MiMo' },
   { value: 'glm', label: 'GLM' },
   { value: 'happyhorse', label: 'HappyHorse' },
+  { value: 'kimi', label: 'Kimi' },
 ]
 
 const providerBrandSet = new Set<string>(providerBrands.map(({ value }) => value))

@@ -4905,16 +4905,24 @@ const loadModelsListCandidates = async (
   mode: "create" | "edit",
   groupID: number,
   platform: GroupPlatform,
+  brand?: ProviderBrand,
 ) => {
-  const request = { mode, groupID, platform };
+  const request = { mode, groupID, platform, brand };
   const requestID = modelsListCandidatesTracker.next(request);
   const state = mode === "create" ? createModelsListState : editModelsListState;
   const loadingRef = mode === "create" ? createModelsListLoading : editModelsListLoading;
   loadingRef.value = true;
   try {
-    const models = await adminAPI.groups.getModelsListCandidates(groupID, platform);
+    const models = brand
+      ? (await adminAPI.channels.syncPricingModels(platform, brand)).models
+      : await adminAPI.groups.getModelsListCandidates(groupID, platform);
     if (!modelsListCandidatesTracker.isCurrent(requestID, request)) {
       return;
+    }
+    if (brand) {
+      const allowed = new Set(models);
+      state.items = [];
+      state.savedModels = state.savedModels.filter((model) => allowed.has(model));
     }
     setModelsListCandidates(state, models);
   } catch (error) {
@@ -5459,7 +5467,12 @@ const handleSort = (key: string, order: 'asc' | 'desc') => {
 
 const openCreateModal = () => {
   showCreateModal.value = true;
-  loadModelsListCandidates("create", 0, createForm.platform);
+  loadModelsListCandidates(
+    "create",
+    0,
+    createForm.platform,
+    createProviderBrand.value || undefined,
+  );
 };
 
 const closeCreateModal = () => {
@@ -5725,7 +5738,12 @@ const handleEdit = async (group: AdminGroup) => {
   editModelRoutingRules.value = await convertApiFormatToRoutingRules(
     group.model_routing,
   );
-  loadModelsListCandidates("edit", group.id, group.platform);
+  loadModelsListCandidates(
+    "edit",
+    group.id,
+    group.platform,
+    editProviderBrand.value || undefined,
+  );
   showEditModal.value = true;
 };
 
@@ -6156,8 +6174,8 @@ watch(
 );
 
 watch(
-  () => createForm.platform,
-  (newVal) => {
+  () => [createForm.platform, createProviderBrand.value] as const,
+  ([newVal, brand]) => {
     if (!["anthropic", "antigravity"].includes(newVal)) {
       createForm.fallback_group_id_on_invalid_request = null;
     }
@@ -6180,7 +6198,7 @@ watch(
     }
     resetDisabledBatchImagePricing(createForm);
     resetModelsListState(createModelsListState);
-    loadModelsListCandidates("create", 0, newVal);
+    loadModelsListCandidates("create", 0, newVal, brand || undefined);
   },
 );
 
@@ -6199,8 +6217,8 @@ watch(
 );
 
 watch(
-  () => editForm.platform,
-  (newVal) => {
+  () => [editForm.platform, editProviderBrand.value] as const,
+  ([newVal, brand]) => {
     if (!["anthropic", "antigravity"].includes(newVal)) {
       editForm.fallback_group_id_on_invalid_request = null;
     }
@@ -6224,7 +6242,12 @@ watch(
     resetDisabledBatchImagePricing(editForm);
     if (editingGroup.value) {
       resetModelsListState(editModelsListState, editForm.platform === editingGroup.value.platform ? editingGroup.value.models_list_config : undefined);
-      loadModelsListCandidates("edit", editingGroup.value.id, newVal);
+      loadModelsListCandidates(
+        "edit",
+        editingGroup.value.id,
+        newVal,
+        brand || undefined,
+      );
     }
   },
 );
@@ -6318,7 +6341,12 @@ const saveSortOrder = async () => {
 onMounted(() => {
   loadGroups();
   void loadLiveCapability();
-  loadModelsListCandidates("create", 0, createForm.platform);
+  loadModelsListCandidates(
+    "create",
+    0,
+    createForm.platform,
+    createProviderBrand.value || undefined,
+  );
   document.addEventListener("click", handleClickOutside);
 });
 

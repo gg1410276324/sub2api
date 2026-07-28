@@ -517,13 +517,40 @@ var platformToLiteLLMProvider = map[string]string{
 	service.PlatformGrok:        "xai",
 }
 
+// ponytail: branded providers are not consistently represented in the shared
+// pricing feed; keep this small allowlist until their model-list APIs can be
+// queried with each channel's credentials.
+var providerBrandModels = map[string][]string{
+	"deepseek":   {"deepseek-v4-pro", "deepseek-v4-flash"},
+	"qwen":       {"qwen3.8-max-preview", "qwen3.7-max", "qwen3.7-plus", "qwen3.6-plus", "qwen3.6-flash", "qwen3.5-plus", "qwen3-coder-next", "qwen3-coder-plus"},
+	"minimax":    {"MiniMax-M2.7", "MiniMax-M2.5"},
+	"seedance":   {"doubao-seedance-1-5-pro-251215"},
+	"mimo":       {"mimo-v2.5", "mimo-v2.5-pro"},
+	"glm":        {"glm-5.1", "glm-5-turbo", "glm-5", "glm-4.7", "glm-4.7-flash", "glm-4.7-flashx"},
+	"happyhorse": {"happyhorse-1.1", "happyhorse-1.0"},
+	"kimi":       {"kimi-k2.6", "kimi-k2.5"},
+}
+
 // SyncPricingModels 返回 LiteLLM 定价目录中指定平台的最新模型列表
-// GET /api/v1/admin/channels/pricing/sync-models?platform=anthropic
+// GET /api/v1/admin/channels/pricing/sync-models?platform=anthropic&brand=deepseek
 func (h *ChannelHandler) SyncPricingModels(c *gin.Context) {
 	platform := strings.ToLower(strings.TrimSpace(c.Query("platform")))
 	if platform == "" {
 		response.ErrorFrom(c, infraerrors.BadRequest("MISSING_PARAMETER", "platform parameter is required").
 			WithMetadata(map[string]string{"param": "platform"}))
+		return
+	}
+
+	brand := strings.ToLower(strings.TrimSpace(c.Query("brand")))
+	if brand != "" {
+		models, ok := providerBrandModels[brand]
+		if !ok {
+			response.ErrorFrom(c, infraerrors.BadRequest("UNSUPPORTED_PROVIDER_BRAND",
+				fmt.Sprintf("unsupported provider brand: %s", brand)).
+				WithMetadata(map[string]string{"param": "brand"}))
+			return
+		}
+		response.Success(c, gin.H{"models": models})
 		return
 	}
 

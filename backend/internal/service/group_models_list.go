@@ -33,7 +33,7 @@ func normalizeGroupModelsListConfig(cfg GroupModelsListConfig) GroupModelsListCo
 func normalizeProviderBrand(brand string) string {
 	brand = strings.ToLower(strings.TrimSpace(brand))
 	switch brand {
-	case "deepseek", "qwen", "minimax", "seedance", "mimo", "glm", "happyhorse":
+	case "deepseek", "qwen", "minimax", "seedance", "mimo", "glm", "happyhorse", "kimi":
 		return brand
 	default:
 		return ""

@@ -171,11 +171,11 @@ export interface SyncPricingModelsResult {
 }
 
 /**
- * Fetch the latest model names from the LiteLLM pricing catalog for the given platform
+ * Fetch the latest model names for the given platform or provider brand
  */
-export async function syncPricingModels(platform: string): Promise<SyncPricingModelsResult> {
+export async function syncPricingModels(platform: string, brand?: string): Promise<SyncPricingModelsResult> {
   const { data } = await apiClient.get<SyncPricingModelsResult>('/admin/channels/pricing/sync-models', {
-    params: { platform }
+    params: { platform, brand }
   })
   return data
 }

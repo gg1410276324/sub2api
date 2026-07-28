@@ -425,10 +425,10 @@
                   <button
                     type="button"
                     @click="syncLatestModels(sIdx)"
-                    :disabled="syncingPlatform === section.platform"
+                    :disabled="syncingPlatform === sectionKey(section)"
                     class="text-xs text-gray-500 hover:text-primary-600 disabled:opacity-50"
                   >
-                    {{ syncingPlatform === section.platform ? t('admin.channels.form.syncingModels') : t('admin.channels.form.syncLatestModels') }}
+                    {{ syncingPlatform === sectionKey(section) ? t('admin.channels.form.syncingModels') : t('admin.channels.form.syncLatestModels') }}
                   </button>
                   <button type="button" @click="addPricingEntry(sIdx)" class="text-xs text-primary-600 hover:text-primary-700">
                     + {{ t('common.add', 'Add') }}
@@ -923,11 +923,13 @@ function addPricingEntry(sectionIdx: number) {
 const syncingPlatform = ref<string | null>(null)
 
 async function syncLatestModels(sectionIdx: number) {
-  const platform = form.platforms[sectionIdx].platform
+  const section = form.platforms[sectionIdx]
+  const platform = section.platform
+  const key = sectionKey(section)
   if (syncingPlatform.value) return
-  syncingPlatform.value = platform
+  syncingPlatform.value = key
   try {
-    const result = await adminAPI.channels.syncPricingModels(platform)
+    const result = await adminAPI.channels.syncPricingModels(platform, section.provider_brand)
     // Collect all model names already present in this platform's pricing entries
     const existingModels = new Set<string>()
     for (const entry of form.platforms[sectionIdx].model_pricing) {

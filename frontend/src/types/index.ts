@@ -501,7 +501,7 @@ export interface PaginationConfig {
 
 export type GroupPlatform = 'anthropic' | 'openai' | 'gemini' | 'antigravity' | 'grok' | 'composite'
 
-export type ProviderBrand = 'deepseek' | 'qwen' | 'minimax' | 'seedance' | 'mimo' | 'glm' | 'happyhorse'
+export type ProviderBrand = 'deepseek' | 'qwen' | 'minimax' | 'seedance' | 'mimo' | 'glm' | 'happyhorse' | 'kimi'
 
 export type SubscriptionType = 'standard' | 'subscription'
 

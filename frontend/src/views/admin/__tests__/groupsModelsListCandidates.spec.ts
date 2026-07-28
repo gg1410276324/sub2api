@@ -44,6 +44,22 @@ describe("groupsModelsListCandidates", () => {
     expect(tracker.isCurrent(firstID, first)).toBe(false);
   });
 
+  it("rejects responses for a previous provider brand on the same transport", () => {
+    const tracker = createModelsListCandidatesTracker();
+    const first = {
+      mode: "create" as const,
+      groupID: 0,
+      platform: "openai" as const,
+      brand: "qwen" as const,
+    };
+    const second = { ...first, brand: "kimi" as const };
+
+    const firstID = tracker.next(first);
+    tracker.next(second);
+
+    expect(tracker.isCurrent(firstID, first)).toBe(false);
+  });
+
   it("tracks create and edit requests independently", () => {
     const tracker = createModelsListCandidatesTracker();
     const editRequest = {
