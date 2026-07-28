@@ -120,6 +120,20 @@ func (_u *APIKeyUpdate) ClearGroupID() *APIKeyUpdate {
 	return _u
 }
 
+// SetAllowedModel sets the "allowed_model" field.
+func (_u *APIKeyUpdate) SetAllowedModel(v string) *APIKeyUpdate {
+	_u.mutation.SetAllowedModel(v)
+	return _u
+}
+
+// SetNillableAllowedModel sets the "allowed_model" field if the given value is not nil.
+func (_u *APIKeyUpdate) SetNillableAllowedModel(v *string) *APIKeyUpdate {
+	if v != nil {
+		_u.SetAllowedModel(*v)
+	}
+	return _u
+}
+
 // SetStatus sets the "status" field.
 func (_u *APIKeyUpdate) SetStatus(v string) *APIKeyUpdate {
 	_u.mutation.SetStatus(v)
@@ -555,6 +569,11 @@ func (_u *APIKeyUpdate) check() error {
 			return &ValidationError{Name: "name", err: fmt.Errorf(`ent: validator failed for field "APIKey.name": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.AllowedModel(); ok {
+		if err := apikey.AllowedModelValidator(v); err != nil {
+			return &ValidationError{Name: "allowed_model", err: fmt.Errorf(`ent: validator failed for field "APIKey.allowed_model": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.Status(); ok {
 		if err := apikey.StatusValidator(v); err != nil {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "APIKey.status": %w`, err)}
@@ -592,6 +611,9 @@ func (_u *APIKeyUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.Name(); ok {
 		_spec.SetField(apikey.FieldName, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.AllowedModel(); ok {
+		_spec.SetField(apikey.FieldAllowedModel, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(apikey.FieldStatus, field.TypeString, value)
@@ -904,6 +926,20 @@ func (_u *APIKeyUpdateOne) SetNillableGroupID(v *int64) *APIKeyUpdateOne {
 // ClearGroupID clears the value of the "group_id" field.
 func (_u *APIKeyUpdateOne) ClearGroupID() *APIKeyUpdateOne {
 	_u.mutation.ClearGroupID()
+	return _u
+}
+
+// SetAllowedModel sets the "allowed_model" field.
+func (_u *APIKeyUpdateOne) SetAllowedModel(v string) *APIKeyUpdateOne {
+	_u.mutation.SetAllowedModel(v)
+	return _u
+}
+
+// SetNillableAllowedModel sets the "allowed_model" field if the given value is not nil.
+func (_u *APIKeyUpdateOne) SetNillableAllowedModel(v *string) *APIKeyUpdateOne {
+	if v != nil {
+		_u.SetAllowedModel(*v)
+	}
 	return _u
 }
 
@@ -1355,6 +1391,11 @@ func (_u *APIKeyUpdateOne) check() error {
 			return &ValidationError{Name: "name", err: fmt.Errorf(`ent: validator failed for field "APIKey.name": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.AllowedModel(); ok {
+		if err := apikey.AllowedModelValidator(v); err != nil {
+			return &ValidationError{Name: "allowed_model", err: fmt.Errorf(`ent: validator failed for field "APIKey.allowed_model": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.Status(); ok {
 		if err := apikey.StatusValidator(v); err != nil {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "APIKey.status": %w`, err)}
@@ -1409,6 +1450,9 @@ func (_u *APIKeyUpdateOne) sqlSave(ctx context.Context) (_node *APIKey, err erro
 	}
 	if value, ok := _u.mutation.Name(); ok {
 		_spec.SetField(apikey.FieldName, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.AllowedModel(); ok {
+		_spec.SetField(apikey.FieldAllowedModel, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(apikey.FieldStatus, field.TypeString, value)

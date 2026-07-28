@@ -1026,6 +1026,10 @@ func (h *GatewayHandler) Models(c *gin.Context) {
 	if forcedPlatform, ok := middleware2.GetForcePlatformFromContext(c); ok && strings.TrimSpace(forcedPlatform) != "" {
 		platform = forcedPlatform
 	}
+	if apiKey != nil && strings.TrimSpace(apiKey.AllowedModel) != "" {
+		writeModelsList(c, platform, []string{strings.TrimSpace(apiKey.AllowedModel)})
+		return
+	}
 
 	if platform == service.PlatformComposite {
 		availableModels := h.compositeAvailableModels(c.Request.Context(), groupID)

@@ -1,8 +1,11 @@
 package service
 
 import (
+	"context"
+	"strings"
 	"time"
 
+	"github.com/Wei-Shaw/sub2api/internal/pkg/ctxkey"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/ip"
 )
 
@@ -28,14 +31,15 @@ func IsWindowExpired(windowStart *time.Time, duration time.Duration) bool {
 }
 
 type APIKey struct {
-	ID          int64
-	UserID      int64
-	Key         string
-	Name        string
-	GroupID     *int64
-	Status      string
-	IPWhitelist []string
-	IPBlacklist []string
+	ID           int64
+	UserID       int64
+	Key          string
+	Name         string
+	GroupID      *int64
+	AllowedModel string
+	Status       string
+	IPWhitelist  []string
+	IPBlacklist  []string
 	// 预编译的 IP 规则，用于认证热路径避免重复 ParseIP/ParseCIDR。
 	CompiledIPWhitelist *ip.CompiledIPRules `json:"-"`
 	CompiledIPBlacklist *ip.CompiledIPRules `json:"-"`
@@ -62,6 +66,34 @@ type APIKey struct {
 	Window5hStart *time.Time // Start of current 5h window
 	Window1dStart *time.Time // Start of current 1d window
 	Window7dStart *time.Time // Start of current 7d window
+}
+
+type apiKeyAllowedModelContextKey struct{}
+
+func (k *APIKey) AllowsModel(model string) bool {
+	return k == nil || strings.TrimSpace(k.AllowedModel) == "" || strings.TrimSpace(model) == strings.TrimSpace(k.AllowedModel)
+}
+
+func WithAPIKeyAllowedModel(ctx context.Context, model string) context.Context {
+	model = strings.TrimSpace(model)
+	if model == "" {
+		return ctx
+	}
+	return context.WithValue(ctx, apiKeyAllowedModelContextKey{}, model)
+}
+
+func ValidateAPIKeyAllowedModel(ctx context.Context, requestedModel string) error {
+	allowedModel, _ := ctx.Value(apiKeyAllowedModelContextKey{}).(string)
+	if publicModel, ok := RequestedPublicModelFromContext(ctx); ok {
+		requestedModel = publicModel
+	} else if originalModel, ok := ctx.Value(ctxkey.Model).(string); ok && strings.TrimSpace(originalModel) != "" {
+		requestedModel = originalModel
+	}
+	requestedModel = strings.TrimSpace(requestedModel)
+	if allowedModel == "" || requestedModel == "" || requestedModel == allowedModel {
+		return nil
+	}
+	return ErrAPIKeyModelNotAllowed
 }
 
 func (k *APIKey) IsActive() bool {

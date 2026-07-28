@@ -1017,8 +1017,8 @@ export default {
         multiplierHint: 'Applies to token billing multiplier; image tokens in token billing are also affected. 0 means peak token requests are billed at 0x.'
       },
       modelsList: {
-        title: 'Custom /v1/models Model List',
-        hint: 'Only changes the /v1/models response. Whitelist model calls and account routing are unchanged.',
+        title: 'Provider Models',
+        hint: 'Select from models mapped by upstream accounts in this group. Selected models are shown to users and can be bound to API keys.',
         loading: 'Loading model list...',
         empty: 'No displayable models',
         selectedSummary: 'Selected {selected} / {total}',

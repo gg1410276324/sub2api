@@ -98,6 +98,10 @@ func (h *GatewayHandler) GeminiV1BetaGetModel(c *gin.Context) {
 		googleError(c, http.StatusBadRequest, "Missing model in URL")
 		return
 	}
+	if !apiKey.AllowsModel(modelName) {
+		googleError(c, http.StatusForbidden, "This API key is restricted to another model")
+		return
+	}
 	if resolvedModel, ok := service.ResolvedUpstreamModelFromContext(c.Request.Context()); ok && strings.TrimSpace(resolvedModel) != "" {
 		modelName = strings.TrimSpace(resolvedModel)
 	}
@@ -167,6 +171,10 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 	modelName, action, err := parseGeminiModelAction(strings.TrimPrefix(c.Param("modelAction"), "/"))
 	if err != nil {
 		googleError(c, http.StatusNotFound, err.Error())
+		return
+	}
+	if !apiKey.AllowsModel(modelName) {
+		googleError(c, http.StatusForbidden, "This API key is restricted to another model")
 		return
 	}
 	if resolvedModel, ok := service.ResolvedUpstreamModelFromContext(c.Request.Context()); ok && strings.TrimSpace(resolvedModel) != "" {

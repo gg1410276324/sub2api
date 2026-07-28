@@ -90,6 +90,11 @@ func GroupID(v int64) predicate.APIKey {
 	return predicate.APIKey(sql.FieldEQ(FieldGroupID, v))
 }
 
+// AllowedModel applies equality check predicate on the "allowed_model" field. It's identical to AllowedModelEQ.
+func AllowedModel(v string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldEQ(FieldAllowedModel, v))
+}
+
 // Status applies equality check predicate on the "status" field. It's identical to StatusEQ.
 func Status(v string) predicate.APIKey {
 	return predicate.APIKey(sql.FieldEQ(FieldStatus, v))
@@ -468,6 +473,71 @@ func GroupIDIsNil() predicate.APIKey {
 // GroupIDNotNil applies the NotNil predicate on the "group_id" field.
 func GroupIDNotNil() predicate.APIKey {
 	return predicate.APIKey(sql.FieldNotNull(FieldGroupID))
+}
+
+// AllowedModelEQ applies the EQ predicate on the "allowed_model" field.
+func AllowedModelEQ(v string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldEQ(FieldAllowedModel, v))
+}
+
+// AllowedModelNEQ applies the NEQ predicate on the "allowed_model" field.
+func AllowedModelNEQ(v string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldNEQ(FieldAllowedModel, v))
+}
+
+// AllowedModelIn applies the In predicate on the "allowed_model" field.
+func AllowedModelIn(vs ...string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldIn(FieldAllowedModel, vs...))
+}
+
+// AllowedModelNotIn applies the NotIn predicate on the "allowed_model" field.
+func AllowedModelNotIn(vs ...string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldNotIn(FieldAllowedModel, vs...))
+}
+
+// AllowedModelGT applies the GT predicate on the "allowed_model" field.
+func AllowedModelGT(v string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldGT(FieldAllowedModel, v))
+}
+
+// AllowedModelGTE applies the GTE predicate on the "allowed_model" field.
+func AllowedModelGTE(v string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldGTE(FieldAllowedModel, v))
+}
+
+// AllowedModelLT applies the LT predicate on the "allowed_model" field.
+func AllowedModelLT(v string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldLT(FieldAllowedModel, v))
+}
+
+// AllowedModelLTE applies the LTE predicate on the "allowed_model" field.
+func AllowedModelLTE(v string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldLTE(FieldAllowedModel, v))
+}
+
+// AllowedModelContains applies the Contains predicate on the "allowed_model" field.
+func AllowedModelContains(v string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldContains(FieldAllowedModel, v))
+}
+
+// AllowedModelHasPrefix applies the HasPrefix predicate on the "allowed_model" field.
+func AllowedModelHasPrefix(v string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldHasPrefix(FieldAllowedModel, v))
+}
+
+// AllowedModelHasSuffix applies the HasSuffix predicate on the "allowed_model" field.
+func AllowedModelHasSuffix(v string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldHasSuffix(FieldAllowedModel, v))
+}
+
+// AllowedModelEqualFold applies the EqualFold predicate on the "allowed_model" field.
+func AllowedModelEqualFold(v string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldEqualFold(FieldAllowedModel, v))
+}
+
+// AllowedModelContainsFold applies the ContainsFold predicate on the "allowed_model" field.
+func AllowedModelContainsFold(v string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldContainsFold(FieldAllowedModel, v))
 }
 
 // StatusEQ applies the EQ predicate on the "status" field.

@@ -208,6 +208,7 @@ interface Props {
   apiKey: string
   baseUrl: string
   platform: GroupPlatform | null
+  allowedModel?: string
   allowMessagesDispatch?: boolean
 }
 
@@ -549,30 +550,42 @@ const currentFiles = computed((): FileConfig[] => {
 })
 
 function generateAnthropicFiles(baseUrl: string, apiKey: string): FileConfig[] {
+  const model = props.allowedModel
+  const environment = {
+    ANTHROPIC_BASE_URL: baseUrl,
+    ANTHROPIC_AUTH_TOKEN: apiKey,
+    ...(model ? {
+      ANTHROPIC_MODEL: model,
+      ANTHROPIC_DEFAULT_OPUS_MODEL: model,
+      ANTHROPIC_DEFAULT_SONNET_MODEL: model,
+      ANTHROPIC_DEFAULT_HAIKU_MODEL: model,
+      ANTHROPIC_DEFAULT_FABLE_MODEL: model,
+      CLAUDE_CODE_SUBAGENT_MODEL: model
+    } : {}),
+    CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: '1',
+    CLAUDE_CODE_ATTRIBUTION_HEADER: '0'
+  }
   let path: string
   let content: string
 
   switch (activeTab.value) {
     case 'unix':
       path = 'Terminal'
-      content = `export ANTHROPIC_BASE_URL="${baseUrl}"
-export ANTHROPIC_AUTH_TOKEN="${apiKey}"
-export CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1
-export CLAUDE_CODE_ATTRIBUTION_HEADER=0`
+      content = Object.entries(environment)
+        .map(([name, value]) => `export ${name}="${value}"`)
+        .join('\n')
       break
     case 'cmd':
       path = 'Command Prompt'
-      content = `set ANTHROPIC_BASE_URL=${baseUrl}
-set ANTHROPIC_AUTH_TOKEN=${apiKey}
-set CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1
-set CLAUDE_CODE_ATTRIBUTION_HEADER=0`
+      content = Object.entries(environment)
+        .map(([name, value]) => `set ${name}=${value}`)
+        .join('\n')
       break
     case 'powershell':
       path = 'PowerShell'
-      content = `$env:ANTHROPIC_BASE_URL="${baseUrl}"
-$env:ANTHROPIC_AUTH_TOKEN="${apiKey}"
-$env:CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1
-$env:CLAUDE_CODE_ATTRIBUTION_HEADER=0`
+      content = Object.entries(environment)
+        .map(([name, value]) => `$env:${name}="${value}"`)
+        .join('\n')
       break
     default:
       path = 'Terminal'
@@ -583,15 +596,10 @@ $env:CLAUDE_CODE_ATTRIBUTION_HEADER=0`
     ? '~/.claude/settings.json'
     : '%USERPROFILE%\\.claude\\settings.json'
 
-  const vscodeContent = `{
-  "$schema": "https://json.schemastore.org/claude-code-settings.json",
-  "env": {
-    "ANTHROPIC_BASE_URL": "${baseUrl}",
-    "ANTHROPIC_AUTH_TOKEN": "${apiKey}",
-    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
-    "CLAUDE_CODE_ATTRIBUTION_HEADER": "0"
-  }
-}`
+  const vscodeContent = JSON.stringify({
+    $schema: 'https://json.schemastore.org/claude-code-settings.json',
+    env: environment
+  }, null, 2)
 
   return [
     { path, content },
@@ -604,15 +612,16 @@ $env:CLAUDE_CODE_ATTRIBUTION_HEADER=0`
 }
 
 function generateGrokClaudeFiles(baseUrl: string, apiKey: string): FileConfig[] {
+  const model = props.allowedModel || 'grok-4.5'
   const environment = {
     ANTHROPIC_BASE_URL: baseUrl,
     ANTHROPIC_AUTH_TOKEN: apiKey,
-    ANTHROPIC_MODEL: 'grok-4.5',
-    ANTHROPIC_DEFAULT_OPUS_MODEL: 'grok-4.5',
-    ANTHROPIC_DEFAULT_SONNET_MODEL: 'grok-4.5',
-    ANTHROPIC_DEFAULT_HAIKU_MODEL: 'grok-4.5',
-    ANTHROPIC_DEFAULT_FABLE_MODEL: 'grok-4.5',
-    CLAUDE_CODE_SUBAGENT_MODEL: 'grok-4.5',
+    ANTHROPIC_MODEL: model,
+    ANTHROPIC_DEFAULT_OPUS_MODEL: model,
+    ANTHROPIC_DEFAULT_SONNET_MODEL: model,
+    ANTHROPIC_DEFAULT_HAIKU_MODEL: model,
+    ANTHROPIC_DEFAULT_FABLE_MODEL: model,
+    CLAUDE_CODE_SUBAGENT_MODEL: model,
     CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: '1',
     CLAUDE_CODE_ATTRIBUTION_HEADER: '0'
   }
@@ -661,7 +670,7 @@ function generateGrokClaudeFiles(baseUrl: string, apiKey: string): FileConfig[] 
 }
 
 function generateGeminiCliContent(baseUrl: string, apiKey: string): FileConfig {
-  const model = 'gemini-2.0-flash'
+  const model = props.allowedModel || 'gemini-2.0-flash'
   const modelComment = t('keys.useKeyModal.gemini.modelComment')
   let path: string
   let content: string
@@ -710,9 +719,10 @@ function generateOpenAIFiles(baseUrl: string, apiKey: string): FileConfig[] {
   const configDir = isWindows ? '%userprofile%\\.codex' : '~/.codex'
 
   // config.toml content
+  const model = props.allowedModel || 'gpt-5.5'
   const configContent = `model_provider = "OpenAI"
-model = "gpt-5.5"
-review_model = "gpt-5.5"
+model = "${model}"
+review_model = "${model}"
 model_reasoning_effort = "xhigh"
 disable_response_storage = true
 network_access = "enabled"
@@ -757,12 +767,13 @@ http_headers = { "x-openai-actor-authorization" = "local-image-extension" }`
 function generateGrokFiles(baseUrl: string, apiKey: string): FileConfig[] {
   const isWindows = activeTab.value === 'windows'
   const configDir = isWindows ? '%userprofile%\\.grok' : '~/.grok'
+  const model = props.allowedModel || 'grok-4.5'
   const configContent = `[models]
 default = "grok"
 web_search = "grok"
 
 [model."grok"]
-model = "grok-4.5"
+model = "${model}"
 base_url = "${baseUrl}"
 name = "Grok 4.5"
 api_key = "${apiKey}"
@@ -782,9 +793,10 @@ function generateGrokCodexFiles(baseUrl: string, apiKey: string): FileConfig[] {
   const configPath = isWindows
     ? '%USERPROFILE%\\.codex\\config.toml'
     : '~/.codex/config.toml'
+  const model = props.allowedModel || 'grok-4.5'
   const configContent = `model_provider = "sub2api_grok"
-model = "grok-4.5"
-review_model = "grok-4.5"
+model = "${model}"
+review_model = "${model}"
 model_reasoning_effort = "xhigh"
 model_context_window = 1000000
 
@@ -819,9 +831,10 @@ function generateOpenAIWsFiles(baseUrl: string, apiKey: string): FileConfig[] {
   const configDir = isWindows ? '%userprofile%\\.codex' : '~/.codex'
 
   // config.toml content with WebSocket v2
+  const model = props.allowedModel || 'gpt-5.5'
   const configContent = `model_provider = "OpenAI"
-model = "gpt-5.5"
-review_model = "gpt-5.5"
+model = "${model}"
+review_model = "${model}"
 model_reasoning_effort = "xhigh"
 disable_response_storage = true
 network_access = "enabled"
@@ -1356,6 +1369,10 @@ function generateOpenCodeConfig(platform: string, baseUrl: string, apiKey: strin
     provider[platform].npm = '@ai-sdk/openai'
     provider[platform].name = 'Grok'
     provider[platform].models = grokModels
+  }
+  if (props.allowedModel && provider[platform].models) {
+    const configuredModel = provider[platform].models[props.allowedModel] || { name: props.allowedModel }
+    provider[platform].models = { [props.allowedModel]: configuredModel }
   }
 
   const agent =

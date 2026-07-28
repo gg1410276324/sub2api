@@ -2050,6 +2050,9 @@ func (s *OpenAIGatewayService) selectAccountWithScheduler(
 	previousResponseCanMove bool,
 	useUpstreamTokenCost bool,
 ) (*AccountSelectionResult, OpenAIAccountScheduleDecision, error) {
+	if err := ValidateAPIKeyAllowedModel(ctx, requestedModel); err != nil {
+		return nil, OpenAIAccountScheduleDecision{}, err
+	}
 	ctx = s.withOpenAIQuotaAutoPauseContext(ctx)
 	platform = normalizeOpenAICompatiblePlatform(platform)
 	decision := OpenAIAccountScheduleDecision{}

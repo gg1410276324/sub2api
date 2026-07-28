@@ -23,14 +23,17 @@ import (
 )
 
 var (
-	ErrAPIKeyNotFound       = infraerrors.NotFound("API_KEY_NOT_FOUND", "api key not found")
-	ErrGroupNotAllowed      = infraerrors.Forbidden("GROUP_NOT_ALLOWED", "user is not allowed to bind this group")
-	ErrAPIKeyExists         = infraerrors.Conflict("API_KEY_EXISTS", "api key already exists")
-	ErrAPIKeyTooShort       = infraerrors.BadRequest("API_KEY_TOO_SHORT", "api key must be at least 16 characters")
-	ErrAPIKeyInvalidChars   = infraerrors.BadRequest("API_KEY_INVALID_CHARS", "api key can only contain letters, numbers, underscores, and hyphens")
-	ErrAPIKeyRateLimited    = infraerrors.TooManyRequests("API_KEY_RATE_LIMITED", "too many failed attempts, please try again later")
-	ErrAPIKeyAuthOverloaded = infraerrors.ServiceUnavailable("API_KEY_AUTH_OVERLOADED", "api key authentication is temporarily overloaded")
-	ErrInvalidIPPattern     = infraerrors.BadRequest("INVALID_IP_PATTERN", "invalid IP or CIDR pattern")
+	ErrAPIKeyNotFound          = infraerrors.NotFound("API_KEY_NOT_FOUND", "api key not found")
+	ErrGroupNotAllowed         = infraerrors.Forbidden("GROUP_NOT_ALLOWED", "user is not allowed to bind this group")
+	ErrAPIKeyExists            = infraerrors.Conflict("API_KEY_EXISTS", "api key already exists")
+	ErrAPIKeyTooShort          = infraerrors.BadRequest("API_KEY_TOO_SHORT", "api key must be at least 16 characters")
+	ErrAPIKeyInvalidChars      = infraerrors.BadRequest("API_KEY_INVALID_CHARS", "api key can only contain letters, numbers, underscores, and hyphens")
+	ErrAPIKeyModelRequired     = infraerrors.BadRequest("API_KEY_MODEL_REQUIRED", "a model must be selected for this group")
+	ErrAPIKeyModelNotAvailable = infraerrors.BadRequest("API_KEY_MODEL_NOT_AVAILABLE", "selected model is not available in this group")
+	ErrAPIKeyModelNotAllowed   = infraerrors.Forbidden("API_KEY_MODEL_NOT_ALLOWED", "this API key is restricted to another model")
+	ErrAPIKeyRateLimited       = infraerrors.TooManyRequests("API_KEY_RATE_LIMITED", "too many failed attempts, please try again later")
+	ErrAPIKeyAuthOverloaded    = infraerrors.ServiceUnavailable("API_KEY_AUTH_OVERLOADED", "api key authentication is temporarily overloaded")
+	ErrInvalidIPPattern        = infraerrors.BadRequest("INVALID_IP_PATTERN", "invalid IP or CIDR pattern")
 	// ErrAPIKeyExpired        = infraerrors.Forbidden("API_KEY_EXPIRED", "api key has expired")
 	ErrAPIKeyExpired = infraerrors.Forbidden("API_KEY_EXPIRED", "api key 已过期")
 	// ErrAPIKeyQuotaExhausted = infraerrors.TooManyRequests("API_KEY_QUOTA_EXHAUSTED", "api key quota exhausted")
@@ -179,11 +182,12 @@ type APIKeyAuthCacheInvalidator interface {
 
 // CreateAPIKeyRequest 创建API Key请求
 type CreateAPIKeyRequest struct {
-	Name        string   `json:"name"`
-	GroupID     *int64   `json:"group_id"`
-	CustomKey   *string  `json:"custom_key"`   // 可选的自定义key
-	IPWhitelist []string `json:"ip_whitelist"` // IP 白名单
-	IPBlacklist []string `json:"ip_blacklist"` // IP 黑名单
+	Name         string   `json:"name"`
+	GroupID      *int64   `json:"group_id"`
+	AllowedModel string   `json:"allowed_model"`
+	CustomKey    *string  `json:"custom_key"`   // 可选的自定义key
+	IPWhitelist  []string `json:"ip_whitelist"` // IP 白名单
+	IPBlacklist  []string `json:"ip_blacklist"` // IP 黑名单
 
 	// Quota fields
 	Quota         float64 `json:"quota"`           // Quota limit in USD (0 = unlimited)
@@ -197,11 +201,12 @@ type CreateAPIKeyRequest struct {
 
 // UpdateAPIKeyRequest 更新API Key请求
 type UpdateAPIKeyRequest struct {
-	Name        *string   `json:"name"`
-	GroupID     *int64    `json:"group_id"`
-	Status      *string   `json:"status"`
-	IPWhitelist *[]string `json:"ip_whitelist"` // IP 白名单（nil 不修改，空数组清空）
-	IPBlacklist *[]string `json:"ip_blacklist"` // IP 黑名单（nil 不修改，空数组清空）
+	Name         *string   `json:"name"`
+	GroupID      *int64    `json:"group_id"`
+	AllowedModel *string   `json:"allowed_model"`
+	Status       *string   `json:"status"`
+	IPWhitelist  *[]string `json:"ip_whitelist"` // IP 白名单（nil 不修改，空数组清空）
+	IPBlacklist  *[]string `json:"ip_blacklist"` // IP 黑名单（nil 不修改，空数组清空）
 
 	// Quota fields
 	Quota           *float64   `json:"quota"`       // Quota limit in USD (nil = no change, 0 = unlimited)
@@ -397,6 +402,25 @@ func (s *APIKeyService) canUserBindGroup(ctx context.Context, user *User, group 
 	return user.CanBindGroup(group.ID, group.IsExclusive)
 }
 
+func validateAPIKeyAllowedModel(group *Group, model string) error {
+	model = strings.TrimSpace(model)
+	if model == "" {
+		if group != nil && group.ModelsListConfig.Enabled {
+			return ErrAPIKeyModelRequired
+		}
+		return nil
+	}
+	if group == nil || !group.ModelsListConfig.Enabled {
+		return ErrAPIKeyModelNotAvailable
+	}
+	for _, candidate := range group.ModelsListConfig.Models {
+		if strings.TrimSpace(candidate) == model {
+			return nil
+		}
+	}
+	return ErrAPIKeyModelNotAvailable
+}
+
 // Create 创建API Key
 func (s *APIKeyService) Create(ctx context.Context, userID int64, req CreateAPIKeyRequest) (*APIKey, error) {
 	// 验证用户存在
@@ -420,16 +444,21 @@ func (s *APIKeyService) Create(ctx context.Context, userID int64, req CreateAPIK
 	}
 
 	// 验证分组权限（如果指定了分组）
+	var selectedGroup *Group
 	if req.GroupID != nil {
-		group, err := s.groupRepo.GetByID(ctx, *req.GroupID)
+		selectedGroup, err = s.groupRepo.GetByID(ctx, *req.GroupID)
 		if err != nil {
 			return nil, fmt.Errorf("get group: %w", err)
 		}
 
 		// 检查用户是否可以绑定该分组
-		if !s.canUserBindGroup(ctx, user, group) {
+		if !s.canUserBindGroup(ctx, user, selectedGroup) {
 			return nil, ErrGroupNotAllowed
 		}
+	}
+	allowedModel := strings.TrimSpace(req.AllowedModel)
+	if err := validateAPIKeyAllowedModel(selectedGroup, allowedModel); err != nil {
+		return nil, err
 	}
 
 	var key string
@@ -469,18 +498,19 @@ func (s *APIKeyService) Create(ctx context.Context, userID int64, req CreateAPIK
 
 	// 创建API Key记录
 	apiKey := &APIKey{
-		UserID:      userID,
-		Key:         key,
-		Name:        html.EscapeString(req.Name),
-		GroupID:     req.GroupID,
-		Status:      StatusActive,
-		IPWhitelist: req.IPWhitelist,
-		IPBlacklist: req.IPBlacklist,
-		Quota:       req.Quota,
-		QuotaUsed:   0,
-		RateLimit5h: req.RateLimit5h,
-		RateLimit1d: req.RateLimit1d,
-		RateLimit7d: req.RateLimit7d,
+		UserID:       userID,
+		Key:          key,
+		Name:         html.EscapeString(req.Name),
+		GroupID:      req.GroupID,
+		AllowedModel: allowedModel,
+		Status:       StatusActive,
+		IPWhitelist:  req.IPWhitelist,
+		IPBlacklist:  req.IPBlacklist,
+		Quota:        req.Quota,
+		QuotaUsed:    0,
+		RateLimit5h:  req.RateLimit5h,
+		RateLimit1d:  req.RateLimit1d,
+		RateLimit7d:  req.RateLimit7d,
 	}
 
 	// Set expiration time if specified
@@ -723,6 +753,8 @@ func (s *APIKeyService) Update(ctx context.Context, id int64, userID int64, req 
 		apiKey.Name = html.EscapeString(*req.Name)
 	}
 
+	groupChanged := false
+	selectedGroup := apiKey.Group
 	if req.GroupID != nil {
 		// 验证分组权限
 		user, err := s.userRepo.GetByID(ctx, userID)
@@ -739,7 +771,23 @@ func (s *APIKeyService) Update(ctx context.Context, id int64, userID int64, req 
 			return nil, ErrGroupNotAllowed
 		}
 
+		groupChanged = apiKey.GroupID == nil || *apiKey.GroupID != *req.GroupID
 		apiKey.GroupID = req.GroupID
+		apiKey.Group = group
+		selectedGroup = group
+	}
+
+	if req.AllowedModel != nil {
+		allowedModel := strings.TrimSpace(*req.AllowedModel)
+		if err := validateAPIKeyAllowedModel(selectedGroup, allowedModel); err != nil {
+			return nil, err
+		}
+		apiKey.AllowedModel = allowedModel
+	} else if groupChanged {
+		if err := validateAPIKeyAllowedModel(selectedGroup, ""); err != nil {
+			return nil, err
+		}
+		apiKey.AllowedModel = ""
 	}
 
 	if req.Status != nil {

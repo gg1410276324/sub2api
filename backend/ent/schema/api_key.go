@@ -44,6 +44,10 @@ func (APIKey) Fields() []ent.Field {
 		field.Int64("group_id").
 			Optional().
 			Nillable(),
+		field.String("allowed_model").
+			MaxLen(255).
+			Default("").
+			Comment("Exact model this API key may call; empty means unrestricted"),
 		field.String("status").
 			MaxLen(20).
 			Default(domain.StatusActive),

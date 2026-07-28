@@ -174,6 +174,17 @@
             </div>
           </template>
 
+          <template #cell-model="{ row }">
+            <span
+              v-if="row.allowed_model"
+              class="inline-flex max-w-56 rounded-md bg-primary-50 px-2 py-1 font-mono text-xs text-primary-700 dark:bg-primary-900/25 dark:text-primary-300"
+              :title="row.allowed_model"
+            >
+              {{ row.allowed_model }}
+            </span>
+            <span v-else class="text-sm text-gray-400">{{ t('keys.allModels') }}</span>
+          </template>
+
           <template #cell-current_concurrency="{ value }">
             <span
               :class="[
@@ -473,6 +484,7 @@
             :searchable="true"
             :search-placeholder="t('keys.searchGroup')"
             data-tour="key-form-group"
+            @update:model-value="onFormGroupChange"
           >
             <template #selected="{ option }">
               <GroupBadge
@@ -505,6 +517,21 @@
               />
             </template>
           </Select>
+        </div>
+
+        <div v-if="selectedGroupModelsEnabled">
+          <label class="input-label">{{ t('keys.modelLabel') }}</label>
+          <Select
+            v-model="formData.allowed_model"
+            :options="modelOptions"
+            :placeholder="t('keys.selectModel')"
+            :searchable="true"
+            :search-placeholder="t('keys.searchModel')"
+          />
+          <p v-if="selectedGroupModels.length === 0" class="mt-1 text-sm text-amber-600 dark:text-amber-400">
+            {{ t('keys.noModelsConfigured') }}
+          </p>
+          <p v-else class="input-hint">{{ t('keys.modelRestrictionHint') }}</p>
         </div>
 
         <!-- Custom Key Section (only for create) -->
@@ -994,6 +1021,7 @@
       :api-key="selectedKey?.key || ''"
       :base-url="publicSettings?.api_base_url || ''"
       :platform="selectedKey?.group?.platform || null"
+      :allowed-model="selectedKey?.allowed_model || ''"
       :allow-messages-dispatch="selectedKey?.group?.allow_messages_dispatch || false"
       @close="closeUseKeyModal"
     />
@@ -1180,6 +1208,7 @@ const allColumns = computed<Column[]>(() => [
   { key: 'id', label: t('keys.id'), sortable: true },
   { key: 'key', label: t('keys.apiKey'), sortable: false },
   { key: 'group', label: t('keys.group'), sortable: false },
+  { key: 'model', label: t('keys.model'), sortable: false },
   { key: 'current_concurrency', label: t('keys.currentConcurrency'), sortable: true },
   { key: 'usage', label: t('keys.usage'), sortable: false },
   { key: 'rate_limit', label: t('keys.rateLimitColumn'), sortable: false },
@@ -1330,6 +1359,7 @@ const setGroupButtonRef = (keyId: number, el: Element | ComponentPublicInstance 
 const formData = ref({
   name: '',
   group_id: null as number | null,
+  allowed_model: '',
   status: 'active' as 'active' | 'inactive',
   use_custom_key: false,
   custom_key: '',
@@ -1423,6 +1453,29 @@ const groupOptions = computed(() =>
     platform: group.platform
   }))
 )
+
+const selectedGroup = computed(() =>
+  groups.value.find((group) => group.id === formData.value.group_id)
+)
+const selectedGroupModelsEnabled = computed(() =>
+  selectedGroup.value?.models_list_config?.enabled === true
+)
+const selectedGroupModels = computed(() => {
+  if (!selectedGroupModelsEnabled.value) return []
+  return [...new Set(
+    (selectedGroup.value?.models_list_config?.models || [])
+      .map((model) => model.trim())
+      .filter(Boolean)
+  )]
+})
+const modelOptions = computed(() =>
+  selectedGroupModels.value.map((model) => ({ value: model, label: model }))
+)
+
+const onFormGroupChange = (value: string | number | boolean | null) => {
+  formData.value.group_id = value === null ? null : Number(value)
+  formData.value.allowed_model = ''
+}
 
 // Group dropdown search
 const groupSearchQuery = ref('')
@@ -1564,6 +1617,7 @@ const editKey = (key: ApiKey) => {
   formData.value = {
     name: key.name,
     group_id: key.group_id,
+    allowed_model: key.allowed_model || '',
     status: key.status === 'quota_exhausted' || key.status === 'expired' ? 'inactive' : key.status,
     use_custom_key: false,
     custom_key: '',
@@ -1634,6 +1688,13 @@ const changeGroup = async (key: ApiKey, newGroupId: number | null) => {
   groupSelectorKeyId.value = null
   dropdownPosition.value = null
   if (key.group_id === newGroupId) return
+  const newGroup = groups.value.find((group) => group.id === newGroupId)
+  if (newGroup?.models_list_config?.enabled) {
+    editKey(key)
+    formData.value.group_id = newGroupId
+    formData.value.allowed_model = ''
+    return
+  }
 
   try {
     await keysAPI.update(key.id, { group_id: newGroupId })
@@ -1665,6 +1726,14 @@ const handleSubmit = async () => {
   // Validate group_id is required
   if (formData.value.group_id === null) {
     appStore.showError(t('keys.groupRequired'))
+    return
+  }
+  if (selectedGroupModelsEnabled.value && !formData.value.allowed_model) {
+    appStore.showError(
+      selectedGroupModels.value.length > 0
+        ? t('keys.modelRequired')
+        : t('keys.noModelsConfigured')
+    )
     return
   }
 
@@ -1721,6 +1790,7 @@ const handleSubmit = async () => {
       const updates: UpdateApiKeyRequest = {
         name: formData.value.name,
         group_id: formData.value.group_id,
+        allowed_model: formData.value.allowed_model,
         ip_whitelist: ipWhitelist,
         ip_blacklist: ipBlacklist,
         quota: quota,
@@ -1739,6 +1809,7 @@ const handleSubmit = async () => {
       await keysAPI.create(
         formData.value.name,
         formData.value.group_id,
+        formData.value.allowed_model || undefined,
         customKey,
         ipWhitelist,
         ipBlacklist,
@@ -1790,6 +1861,7 @@ const closeModals = () => {
   formData.value = {
     name: '',
     group_id: null,
+    allowed_model: '',
     status: 'active',
     use_custom_key: false,
     custom_key: '',

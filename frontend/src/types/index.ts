@@ -560,6 +560,7 @@ export interface Group {
   allow_messages_dispatch?: boolean
   // OpenAI Live 接口开关
   allow_live: boolean
+  models_list_config?: ModelsListConfig
   default_mapped_model?: string
   messages_dispatch_model_config?: OpenAIMessagesDispatchModelConfig
   require_oauth_only: boolean
@@ -661,6 +662,7 @@ export interface ApiKey {
   key: string
   name: string
   group_id: number | null
+  allowed_model: string
   status: 'active' | 'inactive' | 'quota_exhausted' | 'expired'
   ip_whitelist: string[]
   ip_blacklist: string[]
@@ -690,6 +692,7 @@ export interface ApiKey {
 export interface CreateApiKeyRequest {
   name: string
   group_id?: number | null
+  allowed_model?: string
   custom_key?: string // Optional custom API Key
   ip_whitelist?: string[]
   ip_blacklist?: string[]
@@ -703,6 +706,7 @@ export interface CreateApiKeyRequest {
 export interface UpdateApiKeyRequest {
   name?: string
   group_id?: number | null
+  allowed_model?: string
   status?: 'active' | 'inactive'
   ip_whitelist?: string[]
   ip_blacklist?: string[]

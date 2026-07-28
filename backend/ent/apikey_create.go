@@ -99,6 +99,20 @@ func (_c *APIKeyCreate) SetNillableGroupID(v *int64) *APIKeyCreate {
 	return _c
 }
 
+// SetAllowedModel sets the "allowed_model" field.
+func (_c *APIKeyCreate) SetAllowedModel(v string) *APIKeyCreate {
+	_c.mutation.SetAllowedModel(v)
+	return _c
+}
+
+// SetNillableAllowedModel sets the "allowed_model" field if the given value is not nil.
+func (_c *APIKeyCreate) SetNillableAllowedModel(v *string) *APIKeyCreate {
+	if v != nil {
+		_c.SetAllowedModel(*v)
+	}
+	return _c
+}
+
 // SetStatus sets the "status" field.
 func (_c *APIKeyCreate) SetStatus(v string) *APIKeyCreate {
 	_c.mutation.SetStatus(v)
@@ -383,6 +397,10 @@ func (_c *APIKeyCreate) defaults() error {
 		v := apikey.DefaultUpdatedAt()
 		_c.mutation.SetUpdatedAt(v)
 	}
+	if _, ok := _c.mutation.AllowedModel(); !ok {
+		v := apikey.DefaultAllowedModel
+		_c.mutation.SetAllowedModel(v)
+	}
 	if _, ok := _c.mutation.Status(); !ok {
 		v := apikey.DefaultStatus
 		_c.mutation.SetStatus(v)
@@ -447,6 +465,14 @@ func (_c *APIKeyCreate) check() error {
 	if v, ok := _c.mutation.Name(); ok {
 		if err := apikey.NameValidator(v); err != nil {
 			return &ValidationError{Name: "name", err: fmt.Errorf(`ent: validator failed for field "APIKey.name": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.AllowedModel(); !ok {
+		return &ValidationError{Name: "allowed_model", err: errors.New(`ent: missing required field "APIKey.allowed_model"`)}
+	}
+	if v, ok := _c.mutation.AllowedModel(); ok {
+		if err := apikey.AllowedModelValidator(v); err != nil {
+			return &ValidationError{Name: "allowed_model", err: fmt.Errorf(`ent: validator failed for field "APIKey.allowed_model": %w`, err)}
 		}
 	}
 	if _, ok := _c.mutation.Status(); !ok {
@@ -530,6 +556,10 @@ func (_c *APIKeyCreate) createSpec() (*APIKey, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Name(); ok {
 		_spec.SetField(apikey.FieldName, field.TypeString, value)
 		_node.Name = value
+	}
+	if value, ok := _c.mutation.AllowedModel(); ok {
+		_spec.SetField(apikey.FieldAllowedModel, field.TypeString, value)
+		_node.AllowedModel = value
 	}
 	if value, ok := _c.mutation.Status(); ok {
 		_spec.SetField(apikey.FieldStatus, field.TypeString, value)
@@ -778,6 +808,18 @@ func (u *APIKeyUpsert) UpdateGroupID() *APIKeyUpsert {
 // ClearGroupID clears the value of the "group_id" field.
 func (u *APIKeyUpsert) ClearGroupID() *APIKeyUpsert {
 	u.SetNull(apikey.FieldGroupID)
+	return u
+}
+
+// SetAllowedModel sets the "allowed_model" field.
+func (u *APIKeyUpsert) SetAllowedModel(v string) *APIKeyUpsert {
+	u.Set(apikey.FieldAllowedModel, v)
+	return u
+}
+
+// UpdateAllowedModel sets the "allowed_model" field to the value that was provided on create.
+func (u *APIKeyUpsert) UpdateAllowedModel() *APIKeyUpsert {
+	u.SetExcluded(apikey.FieldAllowedModel)
 	return u
 }
 
@@ -1203,6 +1245,20 @@ func (u *APIKeyUpsertOne) UpdateGroupID() *APIKeyUpsertOne {
 func (u *APIKeyUpsertOne) ClearGroupID() *APIKeyUpsertOne {
 	return u.Update(func(s *APIKeyUpsert) {
 		s.ClearGroupID()
+	})
+}
+
+// SetAllowedModel sets the "allowed_model" field.
+func (u *APIKeyUpsertOne) SetAllowedModel(v string) *APIKeyUpsertOne {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.SetAllowedModel(v)
+	})
+}
+
+// UpdateAllowedModel sets the "allowed_model" field to the value that was provided on create.
+func (u *APIKeyUpsertOne) UpdateAllowedModel() *APIKeyUpsertOne {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.UpdateAllowedModel()
 	})
 }
 
@@ -1841,6 +1897,20 @@ func (u *APIKeyUpsertBulk) UpdateGroupID() *APIKeyUpsertBulk {
 func (u *APIKeyUpsertBulk) ClearGroupID() *APIKeyUpsertBulk {
 	return u.Update(func(s *APIKeyUpsert) {
 		s.ClearGroupID()
+	})
+}
+
+// SetAllowedModel sets the "allowed_model" field.
+func (u *APIKeyUpsertBulk) SetAllowedModel(v string) *APIKeyUpsertBulk {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.SetAllowedModel(v)
+	})
+}
+
+// UpdateAllowedModel sets the "allowed_model" field to the value that was provided on create.
+func (u *APIKeyUpsertBulk) UpdateAllowedModel() *APIKeyUpsertBulk {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.UpdateAllowedModel()
 	})
 }
 

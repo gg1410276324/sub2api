@@ -116,6 +116,7 @@ type APIKeyMutation struct {
 	deleted_at         *time.Time
 	key                *string
 	name               *string
+	allowed_model      *string
 	status             *string
 	last_used_at       *time.Time
 	ip_whitelist       *[]string
@@ -529,6 +530,42 @@ func (m *APIKeyMutation) GroupIDCleared() bool {
 func (m *APIKeyMutation) ResetGroupID() {
 	m.group = nil
 	delete(m.clearedFields, apikey.FieldGroupID)
+}
+
+// SetAllowedModel sets the "allowed_model" field.
+func (m *APIKeyMutation) SetAllowedModel(s string) {
+	m.allowed_model = &s
+}
+
+// AllowedModel returns the value of the "allowed_model" field in the mutation.
+func (m *APIKeyMutation) AllowedModel() (r string, exists bool) {
+	v := m.allowed_model
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAllowedModel returns the old "allowed_model" field's value of the APIKey entity.
+// If the APIKey object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *APIKeyMutation) OldAllowedModel(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAllowedModel is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAllowedModel requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAllowedModel: %w", err)
+	}
+	return oldValue.AllowedModel, nil
+}
+
+// ResetAllowedModel resets all changes to the "allowed_model" field.
+func (m *APIKeyMutation) ResetAllowedModel() {
+	m.allowed_model = nil
 }
 
 // SetStatus sets the "status" field.
@@ -1532,7 +1569,7 @@ func (m *APIKeyMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *APIKeyMutation) Fields() []string {
-	fields := make([]string, 0, 23)
+	fields := make([]string, 0, 24)
 	if m.created_at != nil {
 		fields = append(fields, apikey.FieldCreatedAt)
 	}
@@ -1553,6 +1590,9 @@ func (m *APIKeyMutation) Fields() []string {
 	}
 	if m.group != nil {
 		fields = append(fields, apikey.FieldGroupID)
+	}
+	if m.allowed_model != nil {
+		fields = append(fields, apikey.FieldAllowedModel)
 	}
 	if m.status != nil {
 		fields = append(fields, apikey.FieldStatus)
@@ -1624,6 +1664,8 @@ func (m *APIKeyMutation) Field(name string) (ent.Value, bool) {
 		return m.Name()
 	case apikey.FieldGroupID:
 		return m.GroupID()
+	case apikey.FieldAllowedModel:
+		return m.AllowedModel()
 	case apikey.FieldStatus:
 		return m.Status()
 	case apikey.FieldLastUsedAt:
@@ -1679,6 +1721,8 @@ func (m *APIKeyMutation) OldField(ctx context.Context, name string) (ent.Value, 
 		return m.OldName(ctx)
 	case apikey.FieldGroupID:
 		return m.OldGroupID(ctx)
+	case apikey.FieldAllowedModel:
+		return m.OldAllowedModel(ctx)
 	case apikey.FieldStatus:
 		return m.OldStatus(ctx)
 	case apikey.FieldLastUsedAt:
@@ -1768,6 +1812,13 @@ func (m *APIKeyMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetGroupID(v)
+		return nil
+	case apikey.FieldAllowedModel:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAllowedModel(v)
 		return nil
 	case apikey.FieldStatus:
 		v, ok := value.(string)
@@ -2106,6 +2157,9 @@ func (m *APIKeyMutation) ResetField(name string) error {
 		return nil
 	case apikey.FieldGroupID:
 		m.ResetGroupID()
+		return nil
+	case apikey.FieldAllowedModel:
+		m.ResetAllowedModel()
 		return nil
 	case apikey.FieldStatus:
 		m.ResetStatus()
