@@ -134,7 +134,7 @@
             >
           </template>
 
-          <template #cell-platform="{ value }">
+          <template #cell-platform="{ value, row }">
             <span
               :class="[
                 'inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium',
@@ -149,8 +149,8 @@
                         : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
               ]"
             >
-              <PlatformIcon :platform="value" size="xs" />
-              {{ t("admin.groups.platforms." + value) }}
+              <PlatformIcon :platform="groupPlatformIcon(row)" size="xs" />
+              {{ groupPlatformLabel(row) }}
             </span>
           </template>
 
@@ -486,11 +486,23 @@
             t("admin.groups.form.platform")
           }}</label>
           <Select
-            v-model="createForm.platform"
+            v-model="createPlatformSelection"
             :options="platformOptions"
             data-tour="group-form-platform"
             @change="createForm.copy_accounts_from_group_ids = []"
-          />
+          >
+            <template #selected="{ option }">
+              <span v-if="option" class="flex items-center gap-2">
+                <PlatformIcon :platform="platformOptionIcon(option)" size="sm" />
+                {{ platformOptionLabel(option) }}
+              </span>
+            </template>
+            <template #option="{ option, selected }">
+              <PlatformIcon :platform="platformOptionIcon(option)" size="sm" />
+              <span class="select-option-label">{{ platformOptionLabel(option) }}</span>
+              <Icon v-if="selected" name="check" size="sm" class="ml-auto text-primary-500" />
+            </template>
+          </Select>
           <p class="input-hint">{{ t("admin.groups.platformHint") }}</p>
         </div>
         <!-- 从分组复制账号 -->
@@ -2038,11 +2050,23 @@
             t("admin.groups.form.platform")
           }}</label>
           <Select
-            v-model="editForm.platform"
-            :options="platformOptions"
-            :disabled="true"
+            v-model="editPlatformSelection"
+            :options="editPlatformOptions"
+            :disabled="editForm.platform !== 'openai'"
             data-tour="group-form-platform"
-          />
+          >
+            <template #selected="{ option }">
+              <span v-if="option" class="flex items-center gap-2">
+                <PlatformIcon :platform="platformOptionIcon(option)" size="sm" />
+                {{ platformOptionLabel(option) }}
+              </span>
+            </template>
+            <template #option="{ option, selected }">
+              <PlatformIcon :platform="platformOptionIcon(option)" size="sm" />
+              <span class="select-option-label">{{ platformOptionLabel(option) }}</span>
+              <Icon v-if="selected" name="check" size="sm" class="ml-auto text-primary-500" />
+            </template>
+          </Select>
           <p class="input-hint">{{ t("admin.groups.platformNotEditable") }}</p>
         </div>
         <!-- 从分组复制账号（编辑时） -->
@@ -3616,7 +3640,8 @@
                             : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
                   ]"
                 >
-                  {{ t("admin.groups.platforms." + group.platform) }}
+                  <PlatformIcon :platform="groupPlatformIcon(group)" size="xs" />
+                  {{ groupPlatformLabel(group) }}
                 </span>
               </div>
             </div>
@@ -4056,6 +4081,7 @@ import type {
   CompositeRouteEndpoint,
   CompositeRouteMatchType,
   GroupPlatform,
+  ProviderBrand,
   SubscriptionType,
 } from "@/types";
 import type { Column } from "@/components/common/types";
@@ -4078,6 +4104,13 @@ import { createStableObjectKeyResolver } from "@/utils/stableObjectKey";
 import { extractApiErrorMessage } from "@/utils/apiError";
 import { useKeyedDebouncedSearch } from "@/composables/useKeyedDebouncedSearch";
 import { getPersistedPageSize } from "@/composables/usePersistedPageSize";
+import {
+  groupProviderBrand,
+  isProviderBrand,
+  providerBrands,
+  providerBrandLabel,
+  providerTransportPlatform,
+} from "@/utils/providerBrands";
 import {
   createDefaultMessagesDispatchFormState,
   messagesDispatchConfigToFormState,
@@ -4290,14 +4323,30 @@ const exclusiveOptions = computed(() => [
   { value: "false", label: t("admin.groups.nonExclusive") },
 ]);
 
+type PlatformSelection = GroupPlatform | ProviderBrand;
+
 const platformOptions = computed(() => [
-  { value: "anthropic", label: "Anthropic" },
-  { value: "openai", label: "OpenAI" },
-  { value: "gemini", label: "Gemini" },
-  { value: "antigravity", label: "Antigravity" },
-  { value: "grok", label: "Grok" },
-  { value: "composite", label: "Composite" },
+  { value: "anthropic", label: "Anthropic", icon: "anthropic" },
+  { value: "openai", label: "OpenAI", icon: "openai" },
+  ...providerBrands.map(({ value, label }) => ({ value, label, icon: value })),
+  { value: "gemini", label: "Gemini", icon: "gemini" },
+  { value: "antigravity", label: "Antigravity", icon: "antigravity" },
+  { value: "grok", label: "Grok", icon: "grok" },
+  { value: "composite", label: "Composite", icon: "composite" },
 ]);
+
+const platformOptionIcon = (option: Record<string, unknown>) =>
+  option.icon as PlatformSelection;
+const platformOptionLabel = (option: Record<string, unknown>) =>
+  String(option.label ?? "");
+const groupPlatformIcon = (group: AdminGroup): PlatformSelection =>
+  groupProviderBrand(group) ?? group.platform;
+const groupPlatformLabel = (group: AdminGroup): string => {
+  const brand = groupProviderBrand(group);
+  return brand
+    ? providerBrandLabel(brand)
+    : t("admin.groups.platforms." + group.platform);
+};
 
 const platformFilterOptions = computed(() => [
   { value: "", label: t("admin.groups.allPlatforms") },
@@ -4997,6 +5046,41 @@ const editForm = reactive({
   reasoning_effort_mappings: [] as ReasoningEffortMappingRow[],
 });
 
+const createProviderBrand = ref<ProviderBrand | "">("");
+const editProviderBrand = ref<ProviderBrand | "">("");
+
+const createPlatformSelection = computed<PlatformSelection>({
+  get: () => createProviderBrand.value || createForm.platform,
+  set: (value) => {
+    if (isProviderBrand(value)) {
+      createForm.platform = providerTransportPlatform(value);
+      createProviderBrand.value = value;
+    } else {
+      createForm.platform = value;
+      createProviderBrand.value = "";
+    }
+  },
+});
+
+const editPlatformSelection = computed<PlatformSelection>({
+  get: () => editProviderBrand.value || editForm.platform,
+  set: (value) => {
+    if (isProviderBrand(value)) {
+      editForm.platform = providerTransportPlatform(value);
+      editProviderBrand.value = value;
+    } else if (value === "openai") {
+      editForm.platform = value;
+      editProviderBrand.value = "";
+    }
+  },
+});
+
+const editPlatformOptions = computed(() =>
+  editForm.platform === "openai"
+    ? platformOptions.value.filter(({ value }) => value === "openai" || isProviderBrand(value))
+    : platformOptions.value.filter(({ value }) => value === editForm.platform),
+);
+
 type ImagePricingFormState = {
   platform: GroupPlatform;
   allow_image_generation: boolean;
@@ -5387,6 +5471,7 @@ const closeCreateModal = () => {
   createForm.name = "";
   createForm.description = "";
   createForm.platform = "anthropic";
+  createProviderBrand.value = "";
   createForm.rate_multiplier = 1.0;
   createForm.is_exclusive = false;
   createForm.subscription_type = "standard";
@@ -5488,7 +5573,12 @@ const handleCreateGroup = async () => {
       model_routing: convertRoutingRulesToApiFormat(
         createModelRoutingRules.value,
       ),
-      models_list_config: buildModelsListConfig(createModelsListState),
+      models_list_config: {
+        ...buildModelsListConfig(createModelsListState),
+        ...(createProviderBrand.value
+          ? { provider_brand: createProviderBrand.value }
+          : {}),
+      },
       supported_model_scopes: normalizeSupportedModelScopesForPlatform(
         createForm.platform,
         createForm.supported_model_scopes,
@@ -5566,6 +5656,7 @@ const handleEdit = async (group: AdminGroup) => {
   editForm.name = group.name;
   editForm.description = group.description || "";
   editForm.platform = group.platform;
+  editProviderBrand.value = groupProviderBrand(group) ?? "";
   editForm.rate_multiplier = group.rate_multiplier;
   editForm.is_exclusive = group.is_exclusive;
   editForm.status = group.status;
@@ -5647,6 +5738,7 @@ const closeEditModal = () => {
   editingGroup.value = null;
   editForm.max_reasoning_effort = "";
   editForm.reasoning_effort_mappings = [];
+  editProviderBrand.value = "";
   editReasoningEffortPolicyRef.value?.resetValidation();
   editModelRoutingRules.value = [];
   editForm.copy_accounts_from_group_ids = [];
@@ -5702,7 +5794,12 @@ const handleUpdateGroup = async () => {
       model_routing: convertRoutingRulesToApiFormat(
         editModelRoutingRules.value,
       ),
-      models_list_config: buildModelsListConfig(editModelsListState),
+      models_list_config: {
+        ...buildModelsListConfig(editModelsListState),
+        ...(editProviderBrand.value
+          ? { provider_brand: editProviderBrand.value }
+          : {}),
+      },
       supported_model_scopes: normalizeSupportedModelScopesForPlatform(
         editForm.platform,
         editForm.supported_model_scopes,

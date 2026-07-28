@@ -6,7 +6,7 @@
     ]"
   >
     <!-- Platform logo -->
-    <PlatformIcon v-if="platform" :platform="platform" size="sm" />
+    <PlatformIcon v-if="platform" :platform="displayPlatform" size="sm" />
     <!-- Group name -->
     <span class="truncate">{{ name }}</span>
     <!-- Right side label -->
@@ -29,9 +29,10 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import type { SubscriptionType, GroupPlatform } from '@/types'
+import type { SubscriptionType, GroupPlatform, ProviderBrand } from '@/types'
 import { useAppStore } from '@/stores/app'
 import { formatPeakRateWindow, serverTimezoneLabel } from '@/utils/peak-rate'
+import { groupProviderBrand } from '@/utils/providerBrands'
 import PlatformIcon from './PlatformIcon.vue'
 
 interface Props {
@@ -64,6 +65,10 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 const { t } = useI18n()
+
+const displayPlatform = computed<GroupPlatform | ProviderBrand | undefined>(() =>
+  groupProviderBrand({ name: props.name, models_list_config: undefined }) ?? props.platform
+)
 
 const isSubscription = computed(() => props.subscriptionType === 'subscription')
 

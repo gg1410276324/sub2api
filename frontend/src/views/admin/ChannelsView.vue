@@ -160,14 +160,14 @@
           <!-- Platform Tabs (only enabled) -->
           <button
             v-for="section in form.platforms.filter(s => s.enabled)"
-            :key="section.platform"
+            :key="sectionKey(section)"
             type="button"
-            @click="activeTab = section.platform"
+            @click="activeTab = sectionKey(section)"
             class="channel-tab group"
-            :class="activeTab === section.platform ? 'channel-tab-active' : 'channel-tab-inactive'"
+            :class="activeTab === sectionKey(section) ? 'channel-tab-active' : 'channel-tab-inactive'"
           >
-            <PlatformIcon :platform="section.platform" size="xs" :class="platformTextClass(section.platform)" />
-            <span :class="platformTextClass(section.platform)">{{ t('admin.groups.platforms.' + section.platform, section.platform) }}</span>
+            <PlatformIcon :platform="sectionIcon(section)" size="xs" :class="platformTextClass(section.platform)" />
+            <span :class="platformTextClass(section.platform)">{{ sectionLabel(section) }}</span>
           </button>
         </div>
 
@@ -233,21 +233,21 @@
               <label class="input-label mb-0">{{ t('admin.channels.form.platformConfig') }}</label>
               <div class="flex flex-wrap gap-2">
                 <label
-                  v-for="p in platformOrder"
-                  :key="p"
+                  v-for="choice in platformChoices"
+                  :key="choice.key"
                   class="inline-flex cursor-pointer items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm transition-colors"
-                  :class="activePlatforms.includes(p)
+                  :class="activePlatformChoices.includes(choice.key)
                     ? 'bg-primary-50 border-primary-300 dark:bg-primary-900/20 dark:border-primary-700'
                     : 'border-gray-200 hover:bg-gray-50 dark:border-dark-600 dark:hover:bg-dark-700'"
                 >
                   <input
                     type="checkbox"
-                    :checked="activePlatforms.includes(p)"
+                    :checked="activePlatformChoices.includes(choice.key)"
                     class="h-3.5 w-3.5 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                    @change="togglePlatform(p)"
+                    @change="togglePlatformChoice(choice)"
                   />
-                  <PlatformIcon :platform="p" size="xs" :class="platformTextClass(p)" />
-                  <span :class="platformTextClass(p)">{{ t('admin.groups.platforms.' + p, p) }}</span>
+                  <PlatformIcon :platform="choice.key" size="xs" :class="platformTextClass(choice.platform)" />
+                  <span :class="platformTextClass(choice.platform)">{{ choice.label }}</span>
                 </label>
               </div>
             </div>
@@ -274,8 +274,8 @@
           <!-- Platform Tab Content -->
           <div
             v-for="(section, sIdx) in form.platforms"
-            :key="'tab-' + section.platform"
-            v-show="section.enabled && activeTab === section.platform"
+            :key="'tab-' + sectionKey(section)"
+            v-show="section.enabled && activeTab === sectionKey(section)"
             class="space-y-4"
           >
             <!-- Groups -->
@@ -290,12 +290,12 @@
                 <div v-if="groupsLoading" class="py-2 text-center text-xs text-gray-500">
                   {{ t('common.loading', 'Loading...') }}
                 </div>
-                <div v-else-if="getGroupsForPlatform(section.platform).length === 0" class="py-2 text-center text-xs text-gray-500">
+                <div v-else-if="getGroupsForSection(section).length === 0" class="py-2 text-center text-xs text-gray-500">
                   {{ t('admin.channels.form.noGroupsAvailable', 'No groups available') }}
                 </div>
                 <div v-else class="flex flex-wrap gap-1">
                   <label
-                    v-for="group in getGroupsForPlatform(section.platform)"
+                    v-for="group in getGroupsForSection(section)"
                     :key="group.id"
                     class="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-gray-200 px-2 py-1 text-xs transition-colors hover:bg-gray-50 dark:border-dark-600 dark:hover:bg-dark-700"
                     :class="[
@@ -633,7 +633,7 @@ import { adminAPI } from '@/api/admin'
 import type { Channel, ChannelModelPricing, CreateChannelRequest, UpdateChannelRequest, AccountStatsPricingRule } from '@/api/admin/channels'
 import type { PricingFormEntry } from '@/components/admin/channel/types'
 import { mTokToPerToken, perTokenToMTok, apiIntervalsToForm, formIntervalsToAPI, findModelConflict, validateIntervals } from '@/components/admin/channel/types'
-import type { AdminGroup, GroupPlatform } from '@/types'
+import type { AdminGroup, GroupPlatform, ProviderBrand } from '@/types'
 import type { Column } from '@/components/common/types'
 import { platformTextClass, platformBadgeLightClass } from '@/utils/platformColors'
 import AppLayout from '@/components/layout/AppLayout.vue'
@@ -650,6 +650,12 @@ import Toggle from '@/components/common/Toggle.vue'
 import PricingEntryCard from '@/components/admin/channel/PricingEntryCard.vue'
 import { getPersistedPageSize } from '@/composables/usePersistedPageSize'
 import { useKeyedDebouncedSearch } from '@/composables/useKeyedDebouncedSearch'
+import {
+  groupProviderBrand,
+  providerBrands,
+  providerBrandLabel,
+  providerTransportPlatform,
+} from '@/utils/providerBrands'
 
 const { t } = useI18n()
 const appStore = useAppStore()
@@ -677,6 +683,7 @@ interface FormPricingRule {
 // ── Platform Section type ──
 interface PlatformSection {
   platform: GroupPlatform
+  provider_brand?: ProviderBrand
   enabled: boolean
   collapsed: boolean
   group_ids: number[]
@@ -761,6 +768,25 @@ let abortController: AbortController | null = null
 
 // ── Platform config ──
 const platformOrder: GroupPlatform[] = ['anthropic', 'openai', 'gemini', 'antigravity', 'grok']
+type PlatformChoice = {
+  key: GroupPlatform | ProviderBrand
+  platform: GroupPlatform
+  label: string
+  provider_brand?: ProviderBrand
+}
+const platformChoices: PlatformChoice[] = [
+  { key: 'anthropic', platform: 'anthropic', label: 'Anthropic' },
+  { key: 'openai', platform: 'openai', label: 'OpenAI' },
+  ...providerBrands.map(({ value, label }) => ({
+    key: value,
+    platform: providerTransportPlatform(value),
+    label,
+    provider_brand: value,
+  })),
+  { key: 'gemini', platform: 'gemini', label: 'Gemini' },
+  { key: 'antigravity', platform: 'antigravity', label: 'Antigravity' },
+  { key: 'grok', platform: 'grok', label: 'Grok' },
+]
 
 // ── Helpers ──
 function formatDate(value: string): string {
@@ -769,11 +795,22 @@ function formatDate(value: string): string {
 }
 
 // ── Platform section helpers ──
-const activePlatforms = computed(() => form.platforms.filter(s => s.enabled).map(s => s.platform))
+const sectionKey = (section: Pick<PlatformSection, 'platform' | 'provider_brand'>) =>
+  section.provider_brand || section.platform
+const sectionIcon = sectionKey
+const sectionLabel = (section: Pick<PlatformSection, 'platform' | 'provider_brand'>) =>
+  section.provider_brand
+    ? providerBrandLabel(section.provider_brand)
+    : t('admin.groups.platforms.' + section.platform, section.platform)
 
-function addPlatformSection(platform: GroupPlatform) {
+const activePlatformChoices = computed(() =>
+  form.platforms.filter(s => s.enabled).map(sectionKey),
+)
+
+function addPlatformSection(choice: PlatformChoice) {
   form.platforms.push({
-    platform,
+    platform: choice.platform,
+    provider_brand: choice.provider_brand,
     enabled: true,
     collapsed: false,
     group_ids: [],
@@ -786,20 +823,41 @@ function addPlatformSection(platform: GroupPlatform) {
   })
 }
 
-function togglePlatform(platform: GroupPlatform) {
-  const section = form.platforms.find(s => s.platform === platform)
-  if (section) {
-    section.enabled = !section.enabled
-    if (!section.enabled && activeTab.value === platform) {
+function togglePlatformChoice(choice: PlatformChoice) {
+  const exactSection = form.platforms.find(s => sectionKey(s) === choice.key)
+  if (exactSection) {
+    exactSection.enabled = !exactSection.enabled
+    if (!exactSection.enabled && activeTab.value === choice.key) {
       activeTab.value = 'basic'
     }
+    return
+  }
+
+  // ponytail: brands share one OpenAI transport section; add backend brand keys before allowing several per channel.
+  const section = form.platforms.find(s => s.platform === choice.platform)
+  if (section) {
+    const previousKey = sectionKey(section)
+    section.provider_brand = choice.provider_brand
+    section.group_ids = section.group_ids.filter(groupID => {
+      const group = allGroups.value.find(({ id }) => id === groupID)
+      return !!group && groupProviderBrand(group) === choice.provider_brand
+    })
+    section.enabled = true
+    if (activeTab.value === previousKey) activeTab.value = choice.key
   } else {
-    addPlatformSection(platform)
+    addPlatformSection(choice)
   }
 }
 
-function getGroupsForPlatform(platform: GroupPlatform): AdminGroup[] {
-  return allGroups.value.filter(g => g.platform === platform || g.platform === 'composite')
+function getGroupsForSection(section: PlatformSection): AdminGroup[] {
+  if (section.provider_brand) {
+    return allGroups.value.filter(
+      g => g.platform === section.platform && groupProviderBrand(g) === section.provider_brand,
+    )
+  }
+  return allGroups.value.filter(
+    g => (g.platform === section.platform && !groupProviderBrand(g)) || g.platform === 'composite',
+  )
 }
 
 // ── Group helpers ──
@@ -1096,7 +1154,10 @@ function formToAPI(): { group_ids: number[], model_pricing: ChannelModelPricing[
 
     // Model mapping per platform
     if (Object.keys(section.model_mapping).length > 0) {
-      model_mapping[section.platform] = { ...section.model_mapping }
+      model_mapping[section.platform] = {
+        ...(model_mapping[section.platform] || {}),
+        ...section.model_mapping,
+      }
     }
 
     // Model pricing with platform tag
@@ -1165,41 +1226,55 @@ function formToAPI(): { group_ids: number[], model_pricing: ChannelModelPricing[
 }
 
 function apiToForm(channel: Channel): PlatformSection[] {
-  // Build a map: groupID → platform
-  const groupPlatformMap = new Map<number, GroupPlatform>()
+  const groupMap = new Map<number, AdminGroup>()
   for (const g of allGroups.value) {
-    groupPlatformMap.set(g.id, g.platform)
+    groupMap.set(g.id, g)
   }
 
-  // Determine which platforms are active (from groups + pricing + mapping)
-  const activePlatforms = new Set<GroupPlatform>()
+  const activeChoices = new Set<GroupPlatform | ProviderBrand>()
   for (const gid of channel.group_ids || []) {
-    const p = groupPlatformMap.get(gid)
-    if (p === 'composite') {
-      platformOrder.forEach(platform => activePlatforms.add(platform))
-    } else if (p) {
-      activePlatforms.add(p)
+    const group = groupMap.get(gid)
+    if (!group) continue
+    if (group.platform === 'composite') {
+      platformOrder.forEach(platform => activeChoices.add(platform))
+    } else {
+      activeChoices.add(groupProviderBrand(group) || group.platform)
     }
   }
   for (const p of channel.model_pricing || []) {
-    if (p.platform) activePlatforms.add(p.platform as GroupPlatform)
+    const platform = p.platform as GroupPlatform | undefined
+    if (platform && !(platform === 'openai' && [...activeChoices].some(groupProviderBrandKey))) {
+      activeChoices.add(platform)
+    }
   }
   for (const p of Object.keys(channel.model_mapping || {})) {
-    if (platformOrder.includes(p as GroupPlatform)) activePlatforms.add(p as GroupPlatform)
+    const platform = p as GroupPlatform
+    if (
+      platformOrder.includes(platform) &&
+      !(platform === 'openai' && [...activeChoices].some(groupProviderBrandKey))
+    ) {
+      activeChoices.add(platform)
+    }
   }
 
-  // Build sections in platform order
   const sections: PlatformSection[] = []
-  for (const platform of platformOrder) {
-    if (!activePlatforms.has(platform)) continue
+  for (const choice of platformChoices) {
+    if (!activeChoices.has(choice.key)) continue
 
     const groupIds = (channel.group_ids || []).filter(gid => {
-      const groupPlatform = groupPlatformMap.get(gid)
-      return groupPlatform === platform || groupPlatform === 'composite'
+      const group = groupMap.get(gid)
+      if (!group) return false
+      if (choice.provider_brand) {
+        return group.platform === choice.platform && groupProviderBrand(group) === choice.provider_brand
+      }
+      return (
+        (group.platform === choice.platform && !groupProviderBrand(group)) ||
+        group.platform === 'composite'
+      )
     })
-    const mapping = (channel.model_mapping || {})[platform] || {}
+    const mapping = (channel.model_mapping || {})[choice.platform] || {}
     const pricing = (channel.model_pricing || [])
-      .filter(p => (p.platform || 'anthropic') === platform)
+      .filter(p => (p.platform || 'anthropic') === choice.platform)
       .map(p => ({
         models: p.models || [],
         billing_mode: p.billing_mode,
@@ -1216,13 +1291,14 @@ function apiToForm(channel: Channel): PlatformSection[] {
     // Read web_search_emulation from features_config
     const fc = channel.features_config
     const wsEmulation = fc?.web_search_emulation as Record<string, boolean> | undefined
-    const webSearchEnabled = wsEmulation?.[platform] === true
+    const webSearchEnabled = wsEmulation?.[choice.platform] === true
     const codexImageGenerationBridge = fc?.codex_image_generation_bridge as Record<string, boolean> | undefined
-    const codexImageGenerationBridgeEnabled = codexImageGenerationBridge?.[platform] === true
+    const codexImageGenerationBridgeEnabled = codexImageGenerationBridge?.[choice.platform] === true
     const bedrockCCCompatEnabled = fc?.bedrock_cc_compat === true
 
     sections.push({
-      platform,
+      platform: choice.platform,
+      provider_brand: choice.provider_brand,
       enabled: true,
       collapsed: false,
       group_ids: groupIds,
@@ -1236,6 +1312,10 @@ function apiToForm(channel: Channel): PlatformSection[] {
   }
 
   return sections
+}
+
+function groupProviderBrandKey(value: GroupPlatform | ProviderBrand): boolean {
+  return providerBrands.some(({ value: brand }) => brand === value)
 }
 
 // ── Load data ──
@@ -1448,16 +1528,16 @@ async function handleSubmit() {
   // Check for pricing entries with empty models (would be silently skipped)
   for (const section of form.platforms.filter(s => s.enabled)) {
     if (section.group_ids.length === 0) {
-      const platformLabel = t('admin.groups.platforms.' + section.platform, section.platform)
+      const platformLabel = sectionLabel(section)
       appStore.showError(t('admin.channels.noGroupsSelected', { platform: platformLabel }))
-      activeTab.value = section.platform
+      activeTab.value = sectionKey(section)
       return
     }
     for (const entry of section.model_pricing) {
       if (entry.models.length === 0) {
-        const platformLabel = t('admin.groups.platforms.' + section.platform, section.platform)
+        const platformLabel = sectionLabel(section)
         appStore.showError(t('admin.channels.emptyModelsInPricing', { platform: platformLabel }))
-        activeTab.value = section.platform
+        activeTab.value = sectionKey(section)
         return
       }
     }
@@ -1476,7 +1556,7 @@ async function handleSubmit() {
         t('admin.channels.modelConflict',
           { model1: pricingConflict[0], model2: pricingConflict[1] })
       )
-      activeTab.value = section.platform
+      activeTab.value = sectionKey(section)
       return
     }
     // Check model mapping source pattern conflicts
@@ -1488,7 +1568,7 @@ async function handleSubmit() {
           t('admin.channels.mappingConflict',
             { model1: mappingConflict[0], model2: mappingConflict[1] })
         )
-        activeTab.value = section.platform
+        activeTab.value = sectionKey(section)
         return
       }
     }
@@ -1513,10 +1593,10 @@ async function handleSubmit() {
       if (!entry.intervals || entry.intervals.length === 0) continue
       const intervalErr = validateIntervals(entry.intervals, entry.billing_mode, t)
       if (intervalErr) {
-        const platformLabel = t('admin.groups.platforms.' + section.platform, section.platform)
+        const platformLabel = sectionLabel(section)
         const modelLabel = entry.models.join(', ') || t('admin.channels.form.unnamed')
         appStore.showError(`${platformLabel} - ${modelLabel}: ${intervalErr}`)
-        activeTab.value = section.platform
+        activeTab.value = sectionKey(section)
         return
       }
     }

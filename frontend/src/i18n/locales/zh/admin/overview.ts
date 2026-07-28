@@ -918,7 +918,7 @@ export default {
       enterGroupName: '请输入分组名称',
       optionalDescription: '可选描述',
       platformHint: '选择此分组关联的平台',
-      platformNotEditable: '创建后不可更改平台',
+      platformNotEditable: '创建后不可更改传输协议；OpenAI 兼容分组可更改供应商品牌',
       noGroupsYet: '暂无分组',
       createFirstGroup: '创建您的第一个分组来组织 API 密钥。',
       creating: '创建中...',

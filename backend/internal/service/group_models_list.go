@@ -3,7 +3,10 @@ package service
 import "strings"
 
 func normalizeGroupModelsListConfig(cfg GroupModelsListConfig) GroupModelsListConfig {
-	out := GroupModelsListConfig{Enabled: cfg.Enabled}
+	out := GroupModelsListConfig{
+		Enabled:       cfg.Enabled,
+		ProviderBrand: normalizeProviderBrand(cfg.ProviderBrand),
+	}
 	if len(cfg.Models) == 0 {
 		return out
 	}
@@ -25,6 +28,16 @@ func normalizeGroupModelsListConfig(cfg GroupModelsListConfig) GroupModelsListCo
 		out.Models = nil
 	}
 	return out
+}
+
+func normalizeProviderBrand(brand string) string {
+	brand = strings.ToLower(strings.TrimSpace(brand))
+	switch brand {
+	case "deepseek", "qwen", "minimax", "seedance", "mimo", "glm", "happyhorse":
+		return brand
+	default:
+		return ""
+	}
 }
 
 func (g *Group) CustomModelsListEnabled() bool {

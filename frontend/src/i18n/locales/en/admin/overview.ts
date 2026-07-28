@@ -890,7 +890,7 @@ export default {
       enterGroupName: 'Enter group name',
       optionalDescription: 'Optional description',
       platformHint: 'Select the platform this group is associated with',
-      platformNotEditable: 'Platform cannot be changed after creation',
+      platformNotEditable: 'Transport cannot be changed after creation; OpenAI-compatible groups may change provider brand',
       saving: 'Saving...',
       noGroups: 'No groups yet',
       noGroupsDescription: 'Create a group to better manage API keys and rates.',

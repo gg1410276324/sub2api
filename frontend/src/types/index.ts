@@ -501,6 +501,8 @@ export interface PaginationConfig {
 
 export type GroupPlatform = 'anthropic' | 'openai' | 'gemini' | 'antigravity' | 'grok' | 'composite'
 
+export type ProviderBrand = 'deepseek' | 'qwen' | 'minimax' | 'seedance' | 'mimo' | 'glm' | 'happyhorse'
+
 export type SubscriptionType = 'standard' | 'subscription'
 
 export interface OpenAIMessagesDispatchModelConfig {
@@ -597,6 +599,7 @@ export interface AdminGroup extends Group {
 export interface ModelsListConfig {
   enabled: boolean
   models: string[]
+  provider_brand?: ProviderBrand
 }
 
 export type CompositeRouteMatchType = 'exact' | 'prefix'
