@@ -9,6 +9,7 @@ import (
 
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
+	timezoneutil "github.com/Wei-Shaw/sub2api/internal/pkg/timezone"
 )
 
 var (
@@ -114,6 +115,8 @@ type AffiliateRepository interface {
 	ListAffiliateRebateRecords(ctx context.Context, filter AffiliateRecordFilter) ([]AffiliateRebateRecord, int64, error)
 	ListAffiliateTransferRecords(ctx context.Context, filter AffiliateRecordFilter) ([]AffiliateTransferRecord, int64, error)
 	GetAffiliateUserOverview(ctx context.Context, userID int64) (*AffiliateUserOverview, error)
+	GetAffiliateSales(ctx context.Context, agentID int64, weekStart, monthStart time.Time) (*AffiliateSalesSummary, error)
+	ListAffiliateAgentSales(ctx context.Context, filter AffiliateAdminFilter, weekStart, monthStart time.Time) ([]AffiliateAgentSales, int64, error)
 }
 
 // AffiliateAdminFilter 列表筛选条件
@@ -121,6 +124,19 @@ type AffiliateAdminFilter struct {
 	Search   string
 	Page     int
 	PageSize int
+}
+
+type AffiliateSalesSummary struct {
+	AgentID      int64   `json:"agent_id"`
+	InviteeCount int     `json:"invitee_count"`
+	WeekSales    float64 `json:"week_sales"`
+	MonthSales   float64 `json:"month_sales"`
+}
+
+type AffiliateAgentSales struct {
+	AffiliateSalesSummary
+	Email    string `json:"email"`
+	Username string `json:"username"`
 }
 
 // AffiliateAdminEntry 专属用户列表条目
@@ -565,6 +581,48 @@ func (s *AffiliateService) AdminListCustomUsers(ctx context.Context, filter Affi
 		return nil, 0, infraerrors.ServiceUnavailable("SERVICE_UNAVAILABLE", "affiliate service unavailable")
 	}
 	return s.repo.ListUsersWithCustomSettings(ctx, filter)
+}
+
+func (s *AffiliateService) GetAffiliateSales(ctx context.Context, agentID int64, userTZ string) (*AffiliateSalesSummary, error) {
+	if s == nil || s.repo == nil {
+		return nil, infraerrors.ServiceUnavailable("SERVICE_UNAVAILABLE", "affiliate sales unavailable")
+	}
+	weekStart, monthStart := affiliateSalesPeriodStarts(time.Now(), userTZ)
+	return s.repo.GetAffiliateSales(ctx, agentID, weekStart, monthStart)
+}
+
+func (s *AffiliateService) AdminListAgentSales(ctx context.Context, filter AffiliateAdminFilter, userTZ string) ([]AffiliateAgentSales, int64, error) {
+	if s == nil || s.repo == nil {
+		return nil, 0, infraerrors.ServiceUnavailable("SERVICE_UNAVAILABLE", "affiliate sales unavailable")
+	}
+	if filter.Page <= 0 {
+		filter.Page = 1
+	}
+	if filter.PageSize <= 0 {
+		filter.PageSize = 20
+	}
+	if filter.PageSize > 100 {
+		filter.PageSize = 100
+	}
+	weekStart, monthStart := affiliateSalesPeriodStarts(time.Now(), userTZ)
+	return s.repo.ListAffiliateAgentSales(ctx, filter, weekStart, monthStart)
+}
+
+func affiliateSalesPeriodStarts(now time.Time, userTZ string) (time.Time, time.Time) {
+	loc := timezoneutil.Location()
+	if userTZ != "" {
+		if userLoc, err := time.LoadLocation(userTZ); err == nil {
+			loc = userLoc
+		}
+	}
+	localNow := now.In(loc)
+	weekday := int(localNow.Weekday())
+	if weekday == 0 {
+		weekday = 7
+	}
+	weekStart := time.Date(localNow.Year(), localNow.Month(), localNow.Day()-weekday+1, 0, 0, 0, 0, loc)
+	monthStart := time.Date(localNow.Year(), localNow.Month(), 1, 0, 0, 0, 0, loc)
+	return weekStart.UTC(), monthStart.UTC()
 }
 
 func (s *AffiliateService) AdminListInviteRecords(ctx context.Context, filter AffiliateRecordFilter) ([]AffiliateInviteRecord, int64, error) {

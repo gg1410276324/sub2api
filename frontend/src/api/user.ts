@@ -15,6 +15,7 @@ import type {
   NotifyEmailEntry,
   UserAuthProvider,
   UserAffiliateDetail,
+  AffiliateSalesSummary,
   AffiliateTransferResponse,
   PlatformQuotasResponse,
 } from '@/types'
@@ -181,6 +182,13 @@ export async function getAffiliateDetail(): Promise<UserAffiliateDetail> {
   return data
 }
 
+export async function getAffiliateSales(): Promise<AffiliateSalesSummary> {
+  const { data } = await apiClient.get<AffiliateSalesSummary>('/user/aff/sales', {
+    params: { timezone: Intl.DateTimeFormat().resolvedOptions().timeZone },
+  })
+  return data
+}
+
 export async function transferAffiliateQuota(): Promise<AffiliateTransferResponse> {
   const { data } = await apiClient.post<AffiliateTransferResponse>('/user/aff/transfer')
   return data
@@ -208,6 +216,7 @@ export const userAPI = {
   buildOAuthBindingStartURL,
   startOAuthBinding,
   getAffiliateDetail,
+  getAffiliateSales,
   transferAffiliateQuota,
   getMyPlatformQuotas,
 }

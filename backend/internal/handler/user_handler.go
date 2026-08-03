@@ -211,6 +211,27 @@ func (h *UserHandler) GetAffiliate(c *gin.Context) {
 	response.Success(c, detail)
 }
 
+// GetAffiliateSales returns this agent's invited-user recharge sales.
+// GET /api/v1/user/aff/sales
+func (h *UserHandler) GetAffiliateSales(c *gin.Context) {
+	subject, ok := middleware2.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+	role, _ := middleware2.GetUserRoleFromContext(c)
+	if role != service.RoleAgent {
+		response.Forbidden(c, "Agent role required")
+		return
+	}
+	sales, err := h.affiliateService.GetAffiliateSales(c.Request.Context(), subject.UserID, c.Query("timezone"))
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, sales)
+}
+
 // TransferAffiliateQuota transfers all available affiliate quota into current balance.
 // POST /api/v1/user/aff/transfer
 func (h *UserHandler) TransferAffiliateQuota(c *gin.Context) {

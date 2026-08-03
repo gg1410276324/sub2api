@@ -536,6 +536,10 @@ export default {
     linkCopied: '邀请链接已复制',
     loadFailed: '加载邀请返利数据失败',
     transferFailed: '转入余额失败',
+    sales: {
+      week: '本周邀请销售额',
+      month: '本月邀请销售额'
+    },
     stats: {
       rebateRate: '我的返利比例',
       rebateRateHint: '被邀请用户每次充值后你可获得的返利比例',
@@ -633,6 +637,7 @@ export default {
     securityTitle: '安全设置',
     securityDescription: '密码、双因素认证和通知提醒集中放在右侧。',
     administrator: '管理员',
+    agent: '代理',
     user: '用户',
     username: '用户名',
     email: '邮箱',

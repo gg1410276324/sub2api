@@ -531,6 +531,10 @@ export default {
     linkCopied: 'Invite link copied',
     loadFailed: 'Failed to load affiliate data',
     transferFailed: 'Failed to transfer affiliate quota',
+    sales: {
+      week: 'Invited sales this week',
+      month: 'Invited sales this month'
+    },
     stats: {
       rebateRate: 'My Rebate Rate',
       rebateRateHint: 'What you earn each time an invitee recharges',
@@ -628,6 +632,7 @@ export default {
     securityTitle: 'Security Settings',
     securityDescription: 'Password, two-factor authentication, and alerts live in the right rail.',
     administrator: 'Administrator',
+    agent: 'Agent',
     user: 'User',
     username: 'Username',
     email: 'Email',
